@@ -122,7 +122,7 @@ class DBFeed(BarFeed):
         """
         result = session.query(self.model).filter(and_(
             cast(self.model.type, String) == cast(instrument, String),
-            func.timestamp(self.model.start_date) >= func.timestamp(from_date),
-            func.timestamp(self.model.end_date) <= func.timestamp(to_date))).all()
+            self.model.start_date >= from_date,
+            self.model.end_date <=to_date)).all()
 
         return result

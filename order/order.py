@@ -116,6 +116,7 @@ class Order:
 
     @property
     def avg_fill_price(self):
+        assert self.filled , 'order not filled at all!'
         return self.filled_cost / float(self.filled)
 
     @property
@@ -170,7 +171,7 @@ class Order:
 
     @property
     def is_canceled(self):
-        return self.state == State.CANCELED
+        return self.canceled_at is not None
 
     @property
     def is_submitted(self):
