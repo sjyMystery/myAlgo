@@ -1,0 +1,5 @@
+six
+sqlalchemy
+pymysql
+pandas
+numpy
