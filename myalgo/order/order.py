@@ -1,13 +1,13 @@
-from order.action import Action
-from order.state import State
-from order.type import Type
-from order.execution import Execution
-from order import fill
-from bar import Bar
-
-from datetime import datetime
 import abc
 import functools
+from datetime import datetime
+
+from myalgo.bar import Bar
+from myalgo.order import fill
+from myalgo.order.action import Action
+from myalgo.order.execution import Execution
+from myalgo.order.state import State
+from myalgo.order.type import Type
 
 
 class Order:

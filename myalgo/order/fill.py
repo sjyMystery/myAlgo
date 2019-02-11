@@ -1,5 +1,5 @@
-from order import Action
-from bar import Bar
+from myalgo.bar import Bar
+from myalgo.order import Action
 
 
 class FillInfo(object):

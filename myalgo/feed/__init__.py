@@ -1,2 +1,2 @@
-from feed.barfeed import BarFeed
-from feed.dbfeed import DBFeed
+from myalgo.feed.barfeed import BarFeed
+from myalgo.feed.dbfeed import DBFeed

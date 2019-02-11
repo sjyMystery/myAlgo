@@ -1,4 +1,6 @@
 import math
+
+
 # Helper class to calculate PnL and returns over a single instrument (not the whole portfolio).
 class PositionTracker(object):
     def __init__(self, round_quantity):

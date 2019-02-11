@@ -1,7 +1,8 @@
 import abc
+
 import six
 
-from order.order import Order
+from myalgo.order.order import Order
 
 
 ######################################################################

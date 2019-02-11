@@ -1,8 +1,3 @@
-import abc
-import six
-from config import dispatchprio
-
-
 class Event(object):
     def __init__(self):
         self.__handlers = []

@@ -18,11 +18,10 @@
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
 
-from order import State, Action
-
-from stratanalyzer.returns import PositionTracker
-
 import datetime
+
+from myalgo.order import State, Action
+from myalgo.stratanalyzer.returns import PositionTracker
 
 
 class PositionState(object):

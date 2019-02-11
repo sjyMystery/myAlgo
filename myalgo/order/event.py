@@ -1,4 +1,4 @@
-from order import Order, State
+from myalgo.order import Order, State
 
 
 class OrderEvent:

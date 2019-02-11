@@ -1,6 +1,8 @@
-from config import dispatchprio
 import abc
+
 import six
+
+from myalgo.config import dispatchprio
 
 
 @six.add_metaclass(abc.ABCMeta)

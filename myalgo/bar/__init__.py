@@ -1,2 +1,2 @@
-from bar.bar import Bar
-from bar.bars import Bars
+from myalgo.bar.bar import Bar
+from myalgo.bar.bars import Bars

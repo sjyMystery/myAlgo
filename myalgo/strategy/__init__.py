@@ -1,11 +1,10 @@
-from broker import BackTestBroker
-from event import Event, Dispatcher
-from order import Action, LimitOrder, Order
-from feed import BarFeed
 import abc
-import strategy.position
 
-import logger
+from myalgo import logger
+from myalgo.broker import BackTestBroker
+from myalgo.event import Event, Dispatcher
+from myalgo.order import Action, LimitOrder, Order
+from myalgo.strategy import position
 
 
 class BaseStrategy:

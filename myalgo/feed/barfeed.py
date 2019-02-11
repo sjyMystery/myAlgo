@@ -1,5 +1,5 @@
-from event import Event, Subject
-from bar.bars import Bars
+from myalgo.bar.bars import Bars
+from myalgo.event import Event, Subject
 
 
 class BarFeed(Subject):

@@ -1,6 +1,6 @@
-from event.event import Event
-from config import dispatchprio
-import utils
+from myalgo import utils
+from myalgo.config import dispatchprio
+from myalgo.event.event import Event
 
 
 # This class is responsible for dispatching events from multiple subjects, synchronizing them if necessary.
