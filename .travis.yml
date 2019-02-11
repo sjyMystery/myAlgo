@@ -8,7 +8,6 @@ deploy:
   provider: pypi
   user: sujiayi
   on:
-    python: 3.6
     tags: true
     branch: master
   password:
