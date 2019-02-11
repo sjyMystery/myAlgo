@@ -1,0 +1,12 @@
+language: python
+python:
+- '3.6'
+install:
+- pip install -r requirements.txt
+deploy:
+  provider: pypi
+  user: sujiayi     # pypi 用户名
+  on:
+    python: 3.6
+    tags: true
+    branch: master
