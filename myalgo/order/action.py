@@ -1,4 +1,4 @@
-from enum import Enum,unique
+from enum import Enum, unique
 
 
 @unique
@@ -7,4 +7,3 @@ class Action(Enum):
     BUY_TO_COVER = 2
     SELL = 3
     SELL_SHORT = 4
-
