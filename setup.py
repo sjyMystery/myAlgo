@@ -3,7 +3,7 @@ from setuptools import setup,find_packages
 
 setup(
     name='myalgo',
-    version='1.0',
+    version='1.0-alpha',
     packages=find_packages(),
     url='',
     license='',
