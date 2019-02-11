@@ -5,8 +5,10 @@ install:
 - pip install -r requirements.txt
 deploy:
   provider: pypi
-  user: sujiayi     # pypi 用户名
+  user: sujiayi
   on:
     python: 3.6
     tags: true
     branch: master
+  password:
+    secure: Gp4HMkHgV0ppFqvDSxRMFZt4ELdm5P8fWuzYfNtlinuuvuu4nv3Bi3CklqYDxmdHNKjqtz1lC8RysZGJ9CdVVFHxwkpK/cx2LDyRnQtpr+WIysHaeBYiRU+H7DHDBAdF+9gRw+YFbFXxhgf8uxdL7GrBKkJx770H24o05fDXZmRZLcm492ORYgyTylpNnEYUtsfyzXKCsfq8RE1epuUrhA4lM4NUHoDihtSrM57ieJj/WiP1kGL8qIQJHBz1Zyr4Uf+x+U0ccoeGwtbUQu4zUy/RNRGbCvDLe9tfhrzfTdXvNMUbpszWXSGfmR99z+4W+Cr8zMEqudIangesMy4p8b7z+Cj7MoZPcWWsfA+KO44vARzdP9+nlW6diYpw4gQZY6KOtEYFJ0gEjvkVYGb2vl8F7Ek4kVJ7cuGUSuyEMzSayPASmfH283zEhgrJ5EEPKl/JVZ99hTs8IMa1apC/NkvTfoB+n3fzY3bLChagBUAgXqKdW9KMrnzoO45Zwki6A8ioYDn8HowQk85eQ4jumD6rdlUsehXInNiL5avgz2ABwx2bSD0d/s6v1Id3h6y3GKherDIppmuLHD1fK4ccWwDRSmU2BfVzCZQsfwB0X+RxxieLEH6v+WfN4GOLnAvQPfWAkTtjNTFXwISJEzPSSDExIlgVbHaqS1e07+EphrI=
