@@ -1,7 +1,7 @@
 import datetime
 import time
 
-from sqlalchemy import Column, DateTime, String, Integer, Float, CHAR
+from sqlalchemy import Column, DateTime, String, Integer, Float, CHAR, func
 from sqlalchemy import and_
 from sqlalchemy import cast
 from sqlalchemy import create_engine
@@ -118,9 +118,9 @@ class SQLiteFeed(BarFeed):
             to_date: 结束时间
             type: 种类
         """
-        result = session.query(self.model).filter(and_(
+        cursor = session.query(self.model).filter(and_(
             cast(self.model.type, String) == cast(instrument, String),
-            self.model.start_date >= cast(from_date, DateTime),
-            self.model.end_date <= cast(to_date, DateTime))).order_by("start_date").all()
-
+            self.model.start_date >= func.datetime(from_date),
+            self.model.end_date <= func.datetime(to_date))).order_by("start_date")
+        result = cursor.all()
         return result
