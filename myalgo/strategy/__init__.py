@@ -424,7 +424,6 @@ class BaseStrategy:
     def __onOrderEvent(self, broker_, orderEvent):
         order = orderEvent.order
         self.onOrderUpdated(order)
-
         # Notify the position about the order event.
         pos = self.__orderToPosition.get(order.id, None)
         if pos is not None:

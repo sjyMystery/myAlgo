@@ -63,8 +63,8 @@ class WaitingEntryState(PositionState):
         return True
 
     def exit(self, position, stopPrice=None, limitPrice=None, goodTillCanceled=None):
-        assert (position.getAmounts() == 0)
-        assert (position.getEntryOrder().isActive())
+        assert position.getAmounts() == 0
+        assert position.getEntryOrder().is_active
         position.getStrategy().broker.cancelOrder(position.getEntryOrder())
 
 
@@ -155,8 +155,7 @@ class Position(object):
     def __init__(self, strategy, entryOrder, goodTillCanceled, allOrNone):
         # The order must be created but not submitted.
         assert entryOrder.is_initial
-        
-        
+
         self.__state = None
         self.__activeOrders = {}
         self.__shares = 0
@@ -359,7 +358,6 @@ class Position(object):
 
     def onOrderEvent(self, orderEvent):
         self.__updatePosTracker(orderEvent)
-
         order = orderEvent.order
         if not order.is_active:
             del self.__activeOrders[order.id]
