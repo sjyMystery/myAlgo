@@ -56,7 +56,6 @@ class BackTestBroker(Subject):
     def __reset_instruments(self):
         self.instruments = self.bar_feed.instruments
 
-
     def __on_feed_change(self, bars):
         assert not self.started, 'should not change feed when started'
         self.__reset_instruments()
@@ -168,7 +167,6 @@ class BackTestBroker(Subject):
             # Commit the order execution.
             self.__cash = resulting_cash
 
-
             updated_shares = order_.round_quantity(
                 self.__quantities[order_.instrument] + shares_delta
             )
@@ -263,12 +261,9 @@ class BackTestBroker(Subject):
 
     def on_bars(self, datetime_, bars1: Bars, bars2: Bars):
 
-
         # This is to froze the orders that will be processed in this event, to avoid new getting orders introduced
         # and processed on this very same event.
         orders_to_process = list(self.__active_orders.values())
-
-
 
         for order_ in orders_to_process:
             # This may trigger orders to be added/removed from __activeOrders.
