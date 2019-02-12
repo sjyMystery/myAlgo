@@ -86,7 +86,7 @@ class OpenState(PositionState):
 
         # If the entry order is active, request cancellation.
         if position.entryActive():
-            position.getStrategy().broker.cancelOrder(position.getEntryOrder())
+            position.getStrategy().broker.cancel_order(position.getEntryOrder())
 
         position._submitExitOrder(stopPrice, limitPrice, goodTillCanceled)
 
