@@ -3,3 +3,4 @@ venv
 build
 dist
 myalgo.egg-info
+test

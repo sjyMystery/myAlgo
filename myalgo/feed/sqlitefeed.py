@@ -1,7 +1,7 @@
 import datetime
 import time
 
-from sqlalchemy import Column, DateTime, String, Integer, func, Float, CHAR
+from sqlalchemy import Column, DateTime, String, Integer, Float, CHAR
 from sqlalchemy import and_
 from sqlalchemy import cast
 from sqlalchemy import create_engine
@@ -42,19 +42,15 @@ def make_bar_model(table_name):
     return BarModel
 
 
-class DBFeed(BarFeed):
-    LOGGER_NAME = "DB_LOGGER"
+class SQLiteFeed(BarFeed):
+    LOGGER_NAME = "SQLITE_FEED_LOGGER"
 
     def __init__(self,
-                 table_name='bars',
-                 db_name='database',
-                 db_username='root',
-                 db_password='root',
-                 connector='mysqldb',
-                 db_host='127.0.0.1', db_port=3306):
-        self.__engine = create_engine(f'mysql+{connector}://{db_username}:{db_password}@{db_host}:{db_port}/{db_name}')
+                 table_name='bins',
+                 file_name='sqlite'):
+        self.__engine = create_engine(f'sqlite:///{file_name}')
         self.__DBSession = sessionmaker(bind=self.__engine)
-        self.__logger = get_logger(DBFeed.LOGGER_NAME)
+        self.__logger = get_logger(SQLiteFeed.LOGGER_NAME)
         self.__bar_model = make_bar_model(table_name)
 
         def before_cursor_execute(conn, cursor, statement,
@@ -72,7 +68,7 @@ class DBFeed(BarFeed):
         event.listens_for(self.__engine, "before_cursor_execute")(before_cursor_execute)
         event.listens_for(self.__engine, "after_cursor_execute")(after_cursor_execute)
 
-        super(DBFeed, self).__init__()
+        super(SQLiteFeed, self).__init__()
 
         self.bars = []
 
@@ -124,7 +120,7 @@ class DBFeed(BarFeed):
         """
         result = session.query(self.model).filter(and_(
             cast(self.model.type, String) == cast(instrument, String),
-            func.timestamp(self.model.start_date) >= func.timestamp(from_date),
-            func.timestamp(self.model.end_date) <= func.timestamp(to_date))).order_by("start_date").all()
+            self.model.start_date >= cast(from_date, DateTime),
+            self.model.end_date <= cast(to_date, DateTime))).order_by("start_date").all()
 
         return result
