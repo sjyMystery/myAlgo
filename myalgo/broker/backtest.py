@@ -25,7 +25,7 @@ class BackTestBroker(Subject):
 
         self.__next_order_id = 0
         self.__active_orders = {}
-        self.__amounts = {}
+        self.__quantities = {}
         self.__logger = logger.get_logger("Broker_log")
 
         self.__order_events = Event()
@@ -42,12 +42,16 @@ class BackTestBroker(Subject):
     def instruments(self):
         return self.__instruments
 
+    @property
+    def quantities(self):
+        return self.__quantities
+
     @instruments.setter
     def instruments(self, lists):
         assert not self.started, 'should not change instrument when started'
         self.__instruments = lists
         for instrument in lists:
-            self.__amounts[instrument] = 0
+            self.__quantities[instrument] = 0
 
     def __reset_instruments(self):
         self.instruments = self.bar_feed.instruments
@@ -99,7 +103,7 @@ class BackTestBroker(Subject):
         ret = self.__cash
         if not include_short and self.__bar_feed.current_bars is not None:
             bars = self.__bar_feed.current_bars
-            for instrument, shares in six.iteritems(self.__amounts):
+            for instrument, shares in six.iteritems(self.__quantities):
                 if shares < 0:
                     instrument_price = self.get_bar(bars, instrument).in_price
                     ret += instrument_price * shares
@@ -109,7 +113,7 @@ class BackTestBroker(Subject):
     def equity(self):
         """Returns the portfolio value (cash + shares * price)."""
         ret = self.cash()
-        for instrument, shares in six.iteritems(self.__amounts):
+        for instrument, shares in six.iteritems(self.__quantities):
             instrument_price = self.__bar_feed.last_bar(instrument).out_price
             assert instrument_price is not None, "Price for %s is missing" % instrument
             ret += instrument_price * shares
@@ -166,9 +170,9 @@ class BackTestBroker(Subject):
 
 
             updated_shares = order_.round_quantity(
-                self.__amounts[order_.instrument] + shares_delta
+                self.__quantities[order_.instrument] + shares_delta
             )
-            self.__amounts[order_.instrument] = updated_shares
+            self.__quantities[order_.instrument] = updated_shares
 
             # Notify the order update
             if order_.is_filled:
@@ -272,7 +276,7 @@ class BackTestBroker(Subject):
 
     @property
     def active_instruments(self):
-        return [instrument for instrument, shares in six.iteritems(self.__amounts) if shares != 0]
+        return [instrument for instrument, shares in six.iteritems(self.__quantities) if shares != 0]
 
     def active_orders(self, instrument=None):
         if instrument is None:
