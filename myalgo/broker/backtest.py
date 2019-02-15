@@ -342,9 +342,9 @@ class BackTestBroker(Subject):
         return self.__order_events.emit(self, event)
 
     def __reset(self):
-        self.instruments = self.bar_feed.instruments
+
         self.__started = False
         self.__cash = self.__initial_cash
         self.__next_order_id = 0
         self.__active_orders = {}
-        self.__quantities = {}
+        self.instruments = self.bar_feed.instruments
