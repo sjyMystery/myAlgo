@@ -3,8 +3,9 @@ from myalgo.event import Event, Subject
 
 
 class BarFeed(Subject):
-    def __init__(self):
-        self.__bars = []
+    def __init__(self, bars=[]):
+
+        self.__bars = bars
 
         self.__bar_events = Event()
         self.__feed_reset_event = Event()
@@ -14,6 +15,15 @@ class BarFeed(Subject):
         self.__started = False
 
         super(BarFeed, self).__init__()
+
+    def reset(self):
+        self.__started = False
+        self.__current_bar_index = 0
+        self.__feed_reset_event.emit(self.__bars)
+
+    def clone(self):
+        new_feed = BarFeed(bars=self.bars)
+        return new_feed
 
     @property
     def bar_events(self):
@@ -80,6 +90,8 @@ class BarFeed(Subject):
     @bars.setter
     def bars(self, value):
         self.__bars = [Bars(bar_dict=i) for i in value]
+        self.__current_bar_index = 0
+        self.__started = False
         self.__feed_reset_event.emit(self.__bars)
 
     @property

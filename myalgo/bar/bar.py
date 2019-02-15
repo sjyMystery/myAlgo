@@ -5,7 +5,7 @@ class Bar:
 
     def __init__(self, start_date: datetime, end_date: datetime, ask_open: float, ask_close: float, ask_high: float,
                  ask_low: float, bid_open: float, bid_close: float, bid_high: float,
-                 bid_low, volume):
+                 bid_low: float, volume: float):
         if ask_high < ask_low:
             raise Exception("high < low on %s" % start_date)
         elif ask_high < ask_open:
@@ -117,8 +117,8 @@ class Bar:
     @property
     def dict(self):
         return {
-            "start_date":self.start_date,
-            "end_date":self.end_date,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
             "ask_open": self.ask_open,
             "ask_low": self.ask_low,
             "ask_high": self.ask_high,
@@ -129,3 +129,11 @@ class Bar:
             "bid_close": self.bid_close,
         }
 
+    @staticmethod
+    def from_dict(bar: dict):
+        return Bar(start_date=bar["start_date"], end_date=bar["end_date"],
+                   ask_open=bar["ask_open"], ask_high=bar["ask_high"], ask_low=bar["ask_low"],
+                   ask_close=bar["ask_close"],
+                   bid_open=bar["bid_open"], bid_high=bar["bid_high"], bid_low=bar["bid_low"],
+                   bid_close=bar["bid_close"],
+                   volume=bar["volume"])
