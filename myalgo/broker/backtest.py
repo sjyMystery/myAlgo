@@ -54,7 +54,6 @@ class BackTestBroker(Subject):
             self.__quantities[instrument] = 0
 
     def __on_feed_change(self, bars):
-        assert not self.started, 'should not change feed when started'
         self.__reset()
 
     @property
@@ -342,7 +341,6 @@ class BackTestBroker(Subject):
         return self.__order_events.emit(self, event)
 
     def __reset(self):
-
         self.__started = False
         self.__cash = self.__initial_cash
         self.__next_order_id = 0
