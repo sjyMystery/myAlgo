@@ -3,9 +3,9 @@ from myalgo.event import Event, Subject
 
 
 class BarFeed(Subject):
-    def __init__(self, bars=[]):
+    def __init__(self, bars=None):
 
-        self.__bars = bars
+        self.__bars = bars if bars is not None else []
 
         self.__bar_events = Event()
         self.__feed_reset_event = Event()
