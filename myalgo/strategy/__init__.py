@@ -34,7 +34,7 @@ class BaseStrategy:
         # Initialize logging.
         self.__logger = logger.get_logger(BaseStrategy.LOGGER_NAME)
 
-    def reset(self):
+    def reset(self, bars):
         self.__activePositions = set()
         self.__orderToPosition = {}
         self.__barsProcessedEvent = Event()
