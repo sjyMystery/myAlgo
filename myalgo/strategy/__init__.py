@@ -21,6 +21,7 @@ class BaseStrategy:
         self.__dispatcher = Dispatcher()
         self.__broker.order_events.subscribe(self.__onOrderEvent)
         self.bar_feed.bar_events.subscribe(self.__onBars)
+        self.bar_feed.feed_reset_event.subscribe(self.reset)
 
         # onStart will be called once all subjects are started.
         self.__dispatcher.getStartEvent().subscribe(self.onStart)
@@ -32,6 +33,15 @@ class BaseStrategy:
 
         # Initialize logging.
         self.__logger = logger.get_logger(BaseStrategy.LOGGER_NAME)
+
+    def reset(self):
+        self.__activePositions = set()
+        self.__orderToPosition = {}
+        self.__barsProcessedEvent = Event()
+        self.__analyzers = []
+        self.__namedAnalyzers = {}
+        self.__resampledBarFeeds = []
+        self.__dispatcher = Dispatcher()
 
     @property
     def use_event_datetime_logs(self):
