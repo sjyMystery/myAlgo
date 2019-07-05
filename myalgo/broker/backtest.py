@@ -109,6 +109,8 @@ class BackTestBroker(Subject):
         """Returns the portfolio value (cash + shares * price)."""
         ret = self.cash()
         for instrument, shares in six.iteritems(self.__quantities):
+            if self.__bar_feed.last_bar(instrument) is None:
+                continue
             instrument_price = self.__bar_feed.last_bar(instrument).out_price
             assert instrument_price is not None, "Price for %s is missing" % instrument
             ret += instrument_price * shares
@@ -346,3 +348,4 @@ class BackTestBroker(Subject):
         self.__next_order_id = 0
         self.__active_orders = {}
         self.instruments = self.bar_feed.instruments
+

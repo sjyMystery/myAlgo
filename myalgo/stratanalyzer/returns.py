@@ -1,5 +1,46 @@
 import math
 
+from myalgo import dataseries
+from myalgo import stratanalyzer
+from myalgo.event import Event
+
+
+# Helper class to calculate time-weighted returns in a portfolio.
+# Check http://www.wikinvest.com/wiki/Time-weighted_return
+class TimeWeightedReturns(object):
+    def __init__(self, initialValue):
+        self.__lastValue = initialValue
+        self.__flows = 0.0
+        self.__lastPeriodRet = 0.0
+        self.__cumRet = 0.0
+
+    def deposit(self, amount):
+        self.__flows += amount
+
+    def withdraw(self, amount):
+        self.__flows -= amount
+
+    def getCurrentValue(self):
+        return self.__lastValue
+
+    # Update the value of the portfolio.
+    def update(self, currentValue):
+        if self.__lastValue:
+            retSubperiod = (currentValue - self.__lastValue - self.__flows) / float(self.__lastValue)
+        else:
+            retSubperiod = 0.0
+
+        self.__cumRet = (1 + self.__cumRet) * (1 + retSubperiod) - 1
+        self.__lastPeriodRet = retSubperiod
+        self.__lastValue = currentValue
+        self.__flows = 0.0
+
+    def getLastPeriodReturns(self):
+        return self.__lastPeriodRet
+
+    # Note that this value is not annualized.
+    def getCumulativeReturns(self):
+        return self.__cumRet
 
 # Helper class to calculate PnL and returns over a single instrument (not the whole portfolio).
 class PositionTracker(object):
@@ -99,3 +140,74 @@ class PositionTracker(object):
     def sell(self, quantity, price, commission=0.0):
         assert quantity > 0, "Invalid quantity"
         self.update(quantity * -1, price, commission)
+
+
+class ReturnsAnalyzerBase(stratanalyzer.StrategyAnalyzer):
+    def __init__(self):
+        super(ReturnsAnalyzerBase, self).__init__()
+        self.__event = Event()
+        self.__portfolioReturns = None
+
+    @classmethod
+    def getOrCreateShared(cls, strat):
+        name = cls.__name__
+        # Get or create the shared ReturnsAnalyzerBase.
+        ret = strat.getNamedAnalyzer(name)
+        if ret is None:
+            ret = ReturnsAnalyzerBase()
+            strat.attachAnalyzerEx(ret, name)
+        return ret
+
+    def attached(self, strat):
+        self.__portfolioReturns = TimeWeightedReturns(strat.broker.equity)
+
+    # An event will be notified when return are calculated at each bar. The hander should receive 1 parameter:
+    # 1: The current datetime.
+    # 2: This analyzer's instance
+    def getEvent(self):
+        return self.__event
+
+    def getNetReturn(self):
+        return self.__portfolioReturns.getLastPeriodReturns()
+
+    def getCumulativeReturn(self):
+        return self.__portfolioReturns.getCumulativeReturns()
+
+    def beforeOnBars(self, strat, bars):
+        self.__portfolioReturns.update(strat.broker.equity)
+
+        # Notify that new returns are available.
+        self.__event.emit(bars.datetime, self)
+
+
+class Returns(stratanalyzer.StrategyAnalyzer):
+    """
+    A :class:`pyalgotrade.stratanalyzer.StrategyAnalyzer` that calculates time-weighted returns for the
+    whole portfolio.
+    :param maxLen: The maximum number of values to hold in net and cumulative returs dataseries.
+        Once a bounded length is full, when new items are added, a corresponding number of items are discarded from the
+        opposite end. If None then dataseries.DEFAULT_MAX_LEN is used.
+    :type maxLen: int.
+    """
+
+    def __init__(self, maxLen=None):
+        super(Returns, self).__init__()
+        self.__netReturns = dataseries.SequenceDataSeries(maxLen=maxLen)
+        self.__cumReturns = dataseries.SequenceDataSeries(maxLen=maxLen)
+
+    def beforeAttach(self, strat):
+        # Get or create a shared ReturnsAnalyzerBase
+        analyzer = ReturnsAnalyzerBase.getOrCreateShared(strat)
+        analyzer.getEvent().subscribe(self.__onReturns)
+
+    def __onReturns(self, dateTime, returnsAnalyzerBase):
+        self.__netReturns.appendWithDateTime(dateTime, returnsAnalyzerBase.getNetReturn())
+        self.__cumReturns.appendWithDateTime(dateTime, returnsAnalyzerBase.getCumulativeReturn())
+
+    def getReturns(self):
+        """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the returns for each bar."""
+        return self.__netReturns
+
+    def getCumulativeReturns(self):
+        """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the cumulative returns for each bar."""
+        return self.__cumReturns
