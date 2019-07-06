@@ -10,7 +10,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from myalgo.bar.bar import Bar
-from myalgo.feed.barfeed import BarFeed
+from myalgo.feed.barfeed import BaseBarFeed
+from myalgo.feed.barfeed import Frequency
 from myalgo.logger import get_logger
 
 Base = declarative_base()
@@ -42,10 +43,12 @@ def make_bar_model(table_name):
     return BarModel
 
 
-class SQLiteFeed(BarFeed):
+class SQLiteFeed(BaseBarFeed):
     LOGGER_NAME = "SQLITE_FEED_LOGGER"
 
     def __init__(self,
+                 instruments,
+                 frequency=Frequency.MINUTE,
                  table_name='bins',
                  file_name='sqlite'):
         self.__engine = create_engine(f'sqlite:///{file_name}')
@@ -68,7 +71,7 @@ class SQLiteFeed(BarFeed):
         event.listens_for(self.__engine, "before_cursor_execute")(before_cursor_execute)
         event.listens_for(self.__engine, "after_cursor_execute")(after_cursor_execute)
 
-        super(SQLiteFeed, self).__init__()
+        super(SQLiteFeed, self).__init__(frequency, instruments, None, None)
 
         self.bars = []
 
@@ -80,14 +83,20 @@ class SQLiteFeed(BarFeed):
     def model(self):
         return self.__bar_model
 
-    def load_data(self, instruments, from_date, to_date):
+    def load_data(self, from_date, to_date):
         """将数据全部加载上来"""
+
+        instruments = self.instruments
+
+        assert len(instruments) > 0
+
 
         self.__logger.debug(
             f'loading data from database, for instruments: {instruments} from: {from_date} to: {to_date}')
         data_dicts = {}
 
         length = []
+
         session = self.new_session
 
         for instrument in instruments:

@@ -8,7 +8,7 @@ from myalgo.broker.commission import Commission
 from myalgo.config import dispatchprio
 from myalgo.event import Event
 from myalgo.event import Subject
-from myalgo.feed.barfeed import BarFeed
+from myalgo.feed.barfeed import BaseBarFeed
 from myalgo.order import LimitOrder, Action, Order, Execution, OrderEvent, State, MarketOrder, StopLimitOrder, StopOrder
 from myalgo.order.fill import FillInfo
 
@@ -16,7 +16,7 @@ from myalgo.order.fill import FillInfo
 class BackTestBroker(Subject):
     LOGGER_NAME = "back_test_log"
 
-    def __init__(self, cash: float, bar_feed: BarFeed, commission: Commission, round_quantity=lambda x: int(x)):
+    def __init__(self, cash: float, bar_feed: BaseBarFeed, commission: Commission, round_quantity=lambda x: int(x)):
 
         super(BackTestBroker, self).__init__()
         self.__commission = commission

@@ -10,7 +10,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from myalgo.bar.bar import Bar
-from myalgo.feed.barfeed import BarFeed
+from myalgo.feed.barfeed import BaseBarFeed
 from myalgo.logger import get_logger
 
 Base = declarative_base()
@@ -42,7 +42,7 @@ def make_bar_model(table_name):
     return BarModel
 
 
-class MySQLFeed(BarFeed):
+class MySQLFeed(BaseBarFeed):
     LOGGER_NAME = "DB_LOGGER"
 
     def __init__(self,

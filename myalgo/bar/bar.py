@@ -1,11 +1,28 @@
 from datetime import datetime
 
+from enum import Enum, unique
+
+
+@unique
+class Frequency(Enum):
+    TRADE = -1
+    SECOND = 1
+    MINUTE = 60
+    HOUR = 60 * 60
+    DAY = 24 * 60 * 60
+    WEEK = 24 * 60 * 60 * 7
+    MONTH = 24 * 60 * 60 * 31
+
 
 class Bar:
 
     def __init__(self, start_date: datetime, end_date: datetime, ask_open: float, ask_close: float, ask_high: float,
                  ask_low: float, bid_open: float, bid_close: float, bid_high: float,
                  bid_low: float, volume: float):
+
+        self.__useAdjustedValue = None
+        self.__adjClose = None
+
         if ask_high < ask_low:
             raise Exception("high < low on %s" % start_date)
         elif ask_high < ask_open:
@@ -137,3 +154,8 @@ class Bar:
                    bid_open=bar["bid_open"], bid_high=bar["bid_high"], bid_low=bar["bid_low"],
                    bid_close=bar["bid_close"],
                    volume=bar["volume"])
+
+    def set_use_adjusted_values(self, useAdjusted):
+        if useAdjusted and self.__adjClose is None:
+            raise Exception("Adjusted close is not available")
+        self.__useAdjustedValue = useAdjusted

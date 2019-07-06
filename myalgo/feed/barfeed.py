@@ -1,9 +1,12 @@
 from myalgo.bar.bars import Bars
-from myalgo.event import Event, Subject
+from myalgo.config import dispatchprio
+from myalgo.dataseries import bards
+from myalgo.event import Event
+from myalgo.feed import basefeed
 
 
-class BarFeed(Subject):
-    def __init__(self, bars=None):
+class BaseBarFeed(basefeed.BaseFeed):
+    def __init__(self, frequency, instruments, bars=None, maxLen=None):
 
         self.__bars = bars if bars is not None else []
 
@@ -13,8 +16,22 @@ class BarFeed(Subject):
         self.__current_bar_index = 0
 
         self.__started = False
+        self.__frequency = frequency
 
-        super(BarFeed, self).__init__()
+        self.__useAdjustedValues = None
+        self.__defaultInstrument = None
+
+        super(BaseBarFeed, self).__init__(maxLen)
+
+        self.__instruments = instruments
+
+        for instrument in instruments:
+            self.register_instrument(instrument)
+
+        try:
+            self.__barsHaveAdjClose = self.__bars[0][instruments[0]].getAdjClose() is not None
+        except Exception:
+            self.__barsHaveAdjClose = False
 
     def reset(self):
         self.__started = False
@@ -22,7 +39,7 @@ class BarFeed(Subject):
         self.__feed_reset_event.emit(self.__bars)
 
     def clone(self):
-        new_feed = BarFeed(bars=self.bars)
+        new_feed = BaseBarFeed(bars=self.bars)
         return new_feed
 
     @property
@@ -66,7 +83,7 @@ class BarFeed(Subject):
         return self.last_bars.bar(instrument) if self.last_bars is not None else None
 
     def start(self):
-        super(BarFeed, self).start()
+        super(BaseBarFeed, self).start()
         self.__started = True
 
     def stop(self):
@@ -100,8 +117,65 @@ class BarFeed(Subject):
             暂时我们只认第一个
         :return:
         """
-        return self.__bars[0].instruments if len(self.__bars) > 0 else []
+        return self.__instruments
 
     @property
     def feed_reset_event(self):
         return self.__feed_reset_event
+
+    def createDataSeries(self, key, maxLen):
+        ret = bards.BarDataSeries(maxLen)
+        ret.setUseAdjustedValues(self.__useAdjustedValues)
+        return ret
+
+    @property
+    def registered_instruments(self):
+        """Returns a list of registered intstrument names."""
+        return self.getKeys()
+
+    def register_instrument(self, instrument):
+        self.__defaultInstrument = instrument
+        self.registerDataSeries(instrument)
+
+    @property
+    def default_instrument(self):
+        return self.__defaultInstrument
+
+    def data_series(self, instrument=None):
+        """Returns the :class:`pyalgotrade.dataseries.bards.BarDataSeries` for a given instrument.
+
+        :param instrument: Instrument identifier. If None, the default instrument is returned.
+        :type instrument: string.
+        :rtype: :class:`pyalgotrade.dataseries.bards.BarDataSeries`.
+        """
+        if instrument is None:
+            instrument = self.__defaultInstrument
+        return self[instrument]
+
+    def dispatch_priority(self):
+        return dispatchprio.BAR_FEED
+
+    def set_use_adjusted_values(self, use_adjusted):
+        if use_adjusted and not self.bars_have_adj_close:
+            raise Exception("The barfeed doesn't support adjusted close values")
+        # This is to affect future dataseries when they get created.
+        self.__useAdjustedValues = use_adjusted
+        # Update existing dataseries
+        for instrument in self.registered_instruments():
+            self[instrument].setUseAdjustedValues(use_adjusted)
+
+    @property
+    def next_values(self):
+        return self.current_datetime, self.current_bars
+
+    @property
+    def bars_have_adj_close(self):
+        return self.__barsHaveAdjClose
+
+
+# This class is used by the optimizer module. The barfeed is already built on the server side,
+# and the bars are sent back to workers.
+class OptimizerBarFeed(BaseBarFeed):
+
+    def __init__(self, frequency, instruments, bars, maxlen=None):
+        super(OptimizerBarFeed, self).__init__(frequency, instruments=instruments, bars=bars, maxLen=maxlen)

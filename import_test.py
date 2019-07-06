@@ -28,8 +28,8 @@ class Strategy(BackTestStrategy):
         pass
 
 
-feed = SQLiteFeed('bins', 'sqlite')
-feed.load_data(['USDJPY'], datetime.date(2012, 1, 1), datetime.date(2013, 1, 1))
+feed = SQLiteFeed(instruments=['USDJPY'], table_name='bins', file_name='sqlite')
+feed.load_data(datetime.date(2012, 1, 1), datetime.date(2013, 1, 1))
 broker = BackTestBroker(1000, feed, NoCommission())
 strategy = Strategy(broker)
 

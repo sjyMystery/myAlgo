@@ -5,8 +5,17 @@ from ..stratanalyzer.returns import Returns
 from ..stratanalyzer.sharpe import SharpeRatio
 from ..stratanalyzer.trades import Trades
 
+"""
+This class mainly used to test some strategy.
+One should provide the params and then it would save the result into the database.
+
+The strategy should recv the id of params , which would be used to save the result into the database. 
+
+"""
+
 
 class BackTestStrategy(BaseStrategy):
+
     def onBars(self, datetime, bars):
         return NotImplementedError()
 
