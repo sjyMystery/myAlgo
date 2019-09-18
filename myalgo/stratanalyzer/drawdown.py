@@ -1,6 +1,7 @@
 import datetime
 
 from myalgo import stratanalyzer
+from myalgo.bar import Bars
 
 
 class DrawDownHelper(object):
@@ -44,11 +45,11 @@ class DrawDown(stratanalyzer.StrategyAnalyzer):
         self.__longestDDDuration = datetime.timedelta()
         self.__currDrawDown = DrawDownHelper()
 
-    def calculateEquity(self, strat):
-        return strat.broker.equity
+    def calculateEquity(self):
+        return self.strat.broker.equity
 
-    def beforeOnBars(self, strat, bars):
-        equity = self.calculateEquity(strat)
+    def beforeOnBars(self, bars: Bars):
+        equity = self.calculateEquity()
         self.__currDrawDown.update(bars.datetime, equity, equity)
         self.__longestDDDuration = max(self.__longestDDDuration, self.__currDrawDown.getDuration())
         self.__maxDD = min(self.__maxDD, self.__currDrawDown.getMaxDrawDown())

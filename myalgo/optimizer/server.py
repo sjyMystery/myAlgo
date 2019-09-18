@@ -6,7 +6,7 @@ logger = myalgo.logger.get_logger(__name__)
 
 
 class Results(object):
-    """The results of the strategy executions."""
+    """The result_image of the strategy executions."""
 
     def __init__(self, parameters, result):
         self.__parameters = parameters
@@ -21,7 +21,7 @@ class Results(object):
         return self.__result
 
 
-def serve(barFeed, strategyParameters, address, port, batchSize=200):
+def serve(strategy_name, barFeed, strategyParameters, address, port, batchSize=200, result_file="result.sqlite"):
     """Executes a server that will provide bars and strategy parameters for workers to use.
 
     :param barFeed: The bar feed that each worker will use to backtest the strategy.
@@ -33,21 +33,22 @@ def serve(barFeed, strategyParameters, address, port, batchSize=200):
     :type port: int.
     :param batchSize: The number of strategy executions that are delivered to each worker.
     :type batchSize: int.
-    :rtype: A :class:`Results` instance with the best results found or None if no results were obtained.
+    :rtype: A :class:`Results` instance with the best result_image found or None if no result_image were obtained.
     """
 
     paramSource = base.ParameterSource(strategyParameters)
     resultSinc = base.ResultSinc()
-    s = xmlrpcserver.Server(paramSource, resultSinc, barFeed, address, port, batchSize=batchSize)
+    s = xmlrpcserver.Server(strategy_name, paramSource, resultSinc, barFeed, address, port, batchSize=batchSize,
+                            result_file=result_file)
     logger.info("Starting server")
     s.serve()
     logger.info("Server finished")
 
     ret = None
-    bestResult, bestParameters = resultSinc.getBest()
-    if bestResult is not None:
-        logger.info("Best final result %s with parameters %s" % (bestResult, bestParameters.args))
-        ret = Results(bestParameters.args, bestResult)
-    else:
-        logger.error("No results. All jobs failed or no jobs were processed.")
+    # bestResult, bestParameters = resultSinc.getBest()
+    # if bestResult is not None:
+    #     logger.info("Best final result %s with parameters %s" % (bestResult, bestParameters.args))
+    #     ret = Results(bestParameters.args, bestResult)
+    # else:
+    #     logger.error("No result_image. All jobs failed or no jobs were processed.")
     return ret

@@ -1,2 +1,2 @@
-from .basic import BaseStrategy
+from .base import BaseStrategy
 from .btstrategy import BackTestStrategy

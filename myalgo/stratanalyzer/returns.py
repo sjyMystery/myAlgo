@@ -42,6 +42,7 @@ class TimeWeightedReturns(object):
     def getCumulativeReturns(self):
         return self.__cumRet
 
+
 # Helper class to calculate PnL and returns over a single instrument (not the whole portfolio).
 class PositionTracker(object):
     def __init__(self, round_quantity):
@@ -51,6 +52,7 @@ class PositionTracker(object):
     def reset(self):
         self.__pnl = 0.0
         self.__avgPrice = 0.0  # Volume weighted average price per share.
+        self.__avgOpenPrice = 0.0
         self.__position = 0.0
         self.__commissions = 0.0
         self.__totalCommited = 0.0  # The total amount commited to this position.
@@ -84,16 +86,22 @@ class PositionTracker(object):
             ret = pnl / float(self.__totalCommited)
         return ret
 
+    def getReturnRatio(self, price=None, includeCommissions=True):
+        assert self.__avgOpenPrice > 0
+        return self.getReturn(price, includeCommissions) / self.__avgOpenPrice
+
     def __openNewPosition(self, quantity, price):
         self.__avgPrice = price
         self.__position = quantity
         self.__totalCommited = self.__avgPrice * abs(self.__position)
+        self.__avgOpenPrice = self.__avgPrice
 
     def __extendCurrentPosition(self, quantity, price):
         newPosition = self.round_quantity(self.__position + quantity)
         self.__avgPrice = (self.__avgPrice * abs(self.__position) + price * abs(quantity)) / abs(float(newPosition))
         self.__position = newPosition
         self.__totalCommited = self.__avgPrice * abs(self.__position)
+        self.__avgOpenPrice = self.__avgPrice
 
     def __reduceCurrentPosition(self, quantity, price):
         # Check that we're closing or reducing partially
@@ -158,8 +166,8 @@ class ReturnsAnalyzerBase(stratanalyzer.StrategyAnalyzer):
             strat.attachAnalyzerEx(ret, name)
         return ret
 
-    def attached(self, strat):
-        self.__portfolioReturns = TimeWeightedReturns(strat.broker.equity)
+    def attached(self):
+        self.__portfolioReturns = TimeWeightedReturns(self.strat.broker.equity)
 
     # An event will be notified when return are calculated at each bar. The hander should receive 1 parameter:
     # 1: The current datetime.
@@ -173,8 +181,8 @@ class ReturnsAnalyzerBase(stratanalyzer.StrategyAnalyzer):
     def getCumulativeReturn(self):
         return self.__portfolioReturns.getCumulativeReturns()
 
-    def beforeOnBars(self, strat, bars):
-        self.__portfolioReturns.update(strat.broker.equity)
+    def beforeOnBars(self, bars):
+        self.__portfolioReturns.update(self.strat.broker.equity)
 
         # Notify that new returns are available.
         self.__event.emit(bars.datetime, self)
@@ -195,9 +203,9 @@ class Returns(stratanalyzer.StrategyAnalyzer):
         self.__netReturns = dataseries.SequenceDataSeries(maxLen=maxLen)
         self.__cumReturns = dataseries.SequenceDataSeries(maxLen=maxLen)
 
-    def beforeAttach(self, strat):
+    def beforeAttach(self):
         # Get or create a shared ReturnsAnalyzerBase
-        analyzer = ReturnsAnalyzerBase.getOrCreateShared(strat)
+        analyzer = ReturnsAnalyzerBase.getOrCreateShared(self.strat)
         analyzer.getEvent().subscribe(self.__onReturns)
 
     def __onReturns(self, dateTime, returnsAnalyzerBase):

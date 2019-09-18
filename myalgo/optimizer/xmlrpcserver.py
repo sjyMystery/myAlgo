@@ -5,6 +5,7 @@ from six.moves import xmlrpc_server
 
 import myalgo.logger
 from myalgo.optimizer import base
+from myalgo.optimizer import results
 from myalgo.optimizer import serialization
 
 logger = myalgo.logger.get_logger(__name__)
@@ -44,7 +45,8 @@ class RequestHandler(xmlrpc_server.SimpleXMLRPCRequestHandler):
 
 
 class Server(xmlrpc_server.SimpleXMLRPCServer):
-    def __init__(self, paramSource, resultSinc, barFeed, address, port, autoStop=True, batchSize=200):
+    def __init__(self, strategy_name, paramSource, resultSinc, barFeed, address, port, autoStop=True, batchSize=200,
+                 result_file="result.sqlite"):
         assert batchSize > 0, "Invalid batch size"
 
         xmlrpc_server.SimpleXMLRPCServer.__init__(
@@ -65,6 +67,7 @@ class Server(xmlrpc_server.SimpleXMLRPCServer):
         self.__startedServingEvent = threading.Event()
         self.__forcedStop = False
         self.__bestResult = None
+        self.__resultSaver = results.ResultManager(strategy_name=strategy_name, file_name=result_file)
         if autoStop:
             self.__autoStopThread = AutoStopThread(self)
         else:
@@ -75,12 +78,13 @@ class Server(xmlrpc_server.SimpleXMLRPCServer):
         self.register_function(self.getBarsFrequency, 'getBarsFrequency')
         self.register_function(self.getNextJob, 'getNextJob')
         self.register_function(self.pushJobResults, 'pushJobResults')
-
+        self.register_function(self.jobFinished, 'jobFinished')
     def getInstrumentsAndBars(self):
+
         return self.__instrumentsAndBars
 
     def getBarsFrequency(self):
-        return str(self.__barsFreq)
+        return self.__barsFreq
 
     def getNextJob(self):
         ret = None
@@ -106,24 +110,24 @@ class Server(xmlrpc_server.SimpleXMLRPCServer):
 
         return jobsPending or activeJobs
 
-    def pushJobResults(self, jobId, result, parameters, workerName):
+    def jobFinished(self, jobId):
         jobId = serialization.loads(jobId)
-        result = serialization.loads(result)
-        parameters = serialization.loads(parameters)
-
-        # Remove the job mapping.
         with self.__lock:
             try:
                 del self.__activeJobs[jobId]
             except KeyError:
-                # The job's results were already submitted.
                 return
 
-            if self.__bestResult is None or result > self.__bestResult:
-                logger.info("Best result so far %s with parameters %s" % (result, parameters))
-                self.__bestResult = result
-
-        self.__resultSinc.push(result, base.Parameters(*parameters))
+    def pushJobResults(self, result, parameters, workerName):
+        result = serialization.loads(result)
+        parameters = serialization.loads(parameters)
+        p = base.Parameters(*parameters)
+        if result is not None:
+            self.__resultSaver.save(p1=parameters[0], p2=parameters[1], win_rate=result["win_rate"],
+                                    profit_rate=result["profit_rate"], ret=result["ret"], draw_down=result["dd"],
+                                    draw_down_duration=result["ddd"],
+                                    trade_count=result["trade_count"], sharp_ratio=result["sharp"], plr=result["plr"]
+                                    )
 
     def waitServing(self, timeout=None):
         return self.__startedServingEvent.wait(timeout)
@@ -138,9 +142,9 @@ class Server(xmlrpc_server.SimpleXMLRPCServer):
             loadedBars = []
             for dateTime, bars in self.__barFeed:
                 loadedBars.append(bars)
-            instruments = self.__barFeed.getRegisteredInstruments()
+            instruments = self.__barFeed.registered_instruments
             self.__instrumentsAndBars = serialization.dumps((instruments, loadedBars))
-            self.__barsFreq = self.__barFeed.getFrequency()
+            self.__barsFreq = self.__barFeed.frequency.value
 
             if self.__autoStopThread:
                 self.__autoStopThread.start()
@@ -152,5 +156,7 @@ class Server(xmlrpc_server.SimpleXMLRPCServer):
 
             if self.__autoStopThread:
                 self.__autoStopThread.join()
+        except Exception as e:
+            logger.error(f'run exception,{e}')
         finally:
             self.__forcedStop = True

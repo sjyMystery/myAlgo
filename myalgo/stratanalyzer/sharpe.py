@@ -82,9 +82,9 @@ class SharpeRatio(stratanalyzer.StrategyAnalyzer):
     def getReturns(self):
         return self.__returns
 
-    def beforeAttach(self, strat):
+    def beforeAttach(self):
         # Get or create a shared ReturnsAnalyzerBase
-        analyzer = returns.ReturnsAnalyzerBase.getOrCreateShared(strat)
+        analyzer = returns.ReturnsAnalyzerBase.getOrCreateShared(self.strat)
         analyzer.getEvent().subscribe(self.__onReturns)
 
     def __onReturns(self, dateTime, returnsAnalyzerBase):

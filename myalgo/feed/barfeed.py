@@ -39,7 +39,8 @@ class BaseBarFeed(basefeed.BaseFeed):
         self.__feed_reset_event.emit(self.__bars)
 
     def clone(self):
-        new_feed = BaseBarFeed(bars=self.bars)
+        new_feed = BaseBarFeed(bars=self.bars, maxLen=self.max_len, frequency=self.__frequency,
+                               instruments=self.__instruments)
         return new_feed
 
     @property
@@ -93,15 +94,15 @@ class BaseBarFeed(basefeed.BaseFeed):
         pass
 
     def eof(self):
-        return self.__current_bar_index >= len(self.bars)
+        return self.__current_bar_index + 1 >= len(self.bars)
 
     def peek_datetime(self):
         return self.current_datetime
 
     def dispatch(self):
-        current_bars = self.next_bars
+        current_datetime, current_bars = self.getNextValuesAndUpdateDS()
         if current_bars is not None:
-            self.__bar_events.emit(current_bars.datetime, self.last_bars, self.current_bars)
+            self.__bar_events.emit(current_datetime, self.last_bars, self.current_bars)
         return current_bars is not None
 
     @bars.setter
@@ -166,11 +167,16 @@ class BaseBarFeed(basefeed.BaseFeed):
 
     @property
     def next_values(self):
-        return self.current_datetime, self.current_bars
+        values = self.next_bars
+        return self.current_datetime, values
 
     @property
     def bars_have_adj_close(self):
         return self.__barsHaveAdjClose
+
+    @property
+    def frequency(self):
+        return self.__frequency
 
 
 # This class is used by the optimizer module. The barfeed is already built on the server side,

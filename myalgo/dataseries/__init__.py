@@ -118,7 +118,7 @@ class SequenceDataSeries(DataSeries):
         self.__dateTimes.append(dateTime)
         self.__values.append(value)
 
-        self.getNewValueEvent().emit(self, dateTime, value)
+        self.__newValueEvent.emit(self, dateTime, value)
 
     def getDateTimes(self):
         return self.__dateTimes.data()

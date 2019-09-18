@@ -1,5 +1,3 @@
-
-
 import datetime
 
 from myalgo.order import State, Action
@@ -35,11 +33,11 @@ class WaitingEntryState(PositionState):
 
         if orderEvent.type in (State.FILLED, State.PARTIALLY_FILLED):
             position.switchState(OpenState())
-            position.getStrategy().onEnterOk(position)
+            position.getStrategy().notify_enter_ok(position)
         elif orderEvent.type == State.CANCELED:
             assert (position.getEntryOrder().filled == 0)
             position.switchState(ClosedState())
-            position.getStrategy().onEnterCanceled(position)
+            position.getStrategy().notify_enter_canceled(position)
 
     def isOpen(self, position):
         return True
@@ -64,10 +62,10 @@ class OpenState(PositionState):
             if orderEvent.type == State.FILLED:
                 if position.getAmounts() == 0:
                     position.switchState(ClosedState())
-                    position.getStrategy().onExitOk(position)
+                    position.getStrategy().notify_exit_ok(position)
             elif orderEvent.type == State.CANCELED:
                 assert (position.getAmounts() != 0)
-                position.getStrategy().onExitCanceled(position)
+                position.getStrategy().notify_exit_canceled(position)
         elif position.getEntryOrder().id == orderEvent.order.id:
             # Nothing to do since the entry order may be completely filled or canceled after a partial fill.
             assert (position.getAmounts() != 0)
@@ -89,6 +87,8 @@ class OpenState(PositionState):
             position.getStrategy().broker.cancel_order(position.getEntryOrder())
 
         position._submitExitOrder(stopPrice, limitPrice, goodTillCanceled)
+
+        position.getStrategy().notify_exit_start(position)
 
 
 class ClosedState(PositionState):
@@ -155,6 +155,8 @@ class Position(object):
         entryOrder.all_or_one = allOrNone
         self.__submitAndRegisterOrder(entryOrder)
         self.__entryOrder = entryOrder
+
+        strategy.notify_enter_start(self)
 
     def __submitAndRegisterOrder(self, order):
         assert order.is_initial
@@ -253,12 +255,12 @@ class Position(object):
     def cancelEntry(self):
         """Cancels the entry order if its active."""
         if self.entryActive():
-            self.getStrategy().broker.cancelOrder(self.getEntryOrder())
+            self.getStrategy().broker.cancel_order(self.getEntryOrder())
 
     def cancelExit(self):
         """Cancels the exit order if its active."""
         if self.exitActive():
-            self.getStrategy().broker.cancelOrder(self.getExitOrder())
+            self.getStrategy().broker.cancel_order(self.getExitOrder())
 
     def exitMarket(self, goodTillCanceled=None):
         """Submits a market order to close this position.
@@ -409,7 +411,7 @@ class LongPosition(Position):
 
     def buildExitOrder(self, stopPrice, limitPrice):
         quantity = self.getAmounts()
-        assert (quantity > 0)
+        assert quantity > 0, f'quantity is {quantity}'
         if limitPrice is None and stopPrice is None:
             ret = self.getStrategy().broker.create_market_order(Action.SELL, self.getInstrument(), quantity, False)
         elif limitPrice is not None and stopPrice is None:
@@ -444,7 +446,7 @@ class ShortPosition(Position):
 
     def buildExitOrder(self, stopPrice, limitPrice):
         quantity = self.getAmounts() * -1
-        assert (quantity > 0)
+        assert quantity > 0, f'quantity is {quantity}'
         if limitPrice is None and stopPrice is None:
             ret = self.getStrategy().broker.create_market_order(Action.BUY_TO_COVER, self.getInstrument(), quantity,
                                                                 False)

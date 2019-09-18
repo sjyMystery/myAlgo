@@ -1,23 +1,3 @@
-# myalgo
-#
-# Copyright 2011-2018 Gabriel Martin Becedillas Ruiz
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 import multiprocessing
 import socket
 
@@ -25,6 +5,7 @@ import retrying
 from six.moves import xmlrpc_client
 
 import myalgo.logger
+from myalgo.feed import OptimizerBarFeed
 from myalgo.optimizer import serialization
 
 wait_exponential_multiplier = 500
@@ -39,18 +20,25 @@ def any_exception(exception):
 @retrying.retry(wait_exponential_multiplier=wait_exponential_multiplier, wait_exponential_max=wait_exponential_max,
                 stop_max_delay=stop_max_delay, retry_on_exception=any_exception)
 def retry_on_network_error(function, *args, **kwargs):
-    return function(*args, **kwargs)
+    result = function(*args, **kwargs)
+    return result
 
 
 class Worker(object):
-    def __init__(self, address, port, workerName=None):
+    def __init__(self, address, port, workerName=None, barFeed=None):
         url = "http://%s:%s/myalgoRPC" % (address, port)
-        self.__logger = myalgo.logger.getLogger(workerName)
+
+        self.__logger = myalgo.logger.get_logger(workerName)
         self.__server = xmlrpc_client.ServerProxy(url, allow_none=True)
         if workerName is None:
             self.__workerName = socket.gethostname()
         else:
             self.__workerName = workerName
+
+        if barFeed is not None:
+            self.__feed = OptimizerBarFeed(barFeed.frequency, barFeed.instruments, barFeed.bars, barFeed.max_len)
+        else:
+            self.__feed = None
 
     def getLogger(self):
         return self.__logger
@@ -70,36 +58,34 @@ class Worker(object):
         ret = serialization.loads(ret)
         return ret
 
-    def pushJobResults(self, jobId, result, parameters):
-        jobId = serialization.dumps(jobId)
+    def pushJobResults(self, result, parameters):
         result = serialization.dumps(result)
         parameters = serialization.dumps(parameters)
         workerName = serialization.dumps(self.__workerName)
-        retry_on_network_error(self.__server.pushJobResults, jobId, result, parameters, workerName)
+        retry_on_network_error(self.__server.pushJobResults, result, parameters, workerName)
 
-    def __processJob(self, job, barsFreq, instruments, bars):
-        bestResult = None
+    def jobFinished(self, jobId):
+        jobId = serialization.dumps(jobId)
+        retry_on_network_error(self.__server.jobFinished, jobId)
+
+    def __processJob(self, job):
         parameters = job.getNextParameters()
-        bestParams = parameters
         while parameters is not None:
             # Wrap the bars into a feed.
-            feed = feed.OptimizerBarFeed(barsFreq, instruments, bars)
-            # Run the strategy.
             self.getLogger().info("Running strategy with parameters %s" % (str(parameters)))
             result = None
             try:
-                result = self.runStrategy(feed, *parameters)
+                result = self.runStrategy(self.__feed.clone(), *parameters)
             except Exception as e:
                 self.getLogger().exception("Error running strategy with parameters %s: %s" % (str(parameters), e))
-            self.getLogger().info("Result %s" % result)
-            if bestResult is None or result > bestResult:
-                bestResult = result
-                bestParams = parameters
+
+            self.getLogger().info(f"result:{result} params:{parameters}")
+            self.pushJobResults(result, parameters)
+
             # Run with the next set of parameters.
             parameters = job.getNextParameters()
 
-        assert (bestParams is not None)
-        self.pushJobResults(job.getId(), bestResult, bestParams)
+        self.jobFinished(job.getId())
 
     # Run the strategy and return the result.
     def runStrategy(self, feed, parameters):
@@ -109,32 +95,35 @@ class Worker(object):
         try:
             self.getLogger().info("Started running")
             # Get the instruments and bars.
-            instruments, bars = self.getInstrumentsAndBars()
-            barsFreq = self.getBarsFrequency()
+            if not self.__feed:
+                instruments, bars = self.getInstrumentsAndBars()
+                barsFreq = self.getBarsFrequency()
+                self.__feed = OptimizerBarFeed(barsFreq, instruments, bars, self)
 
             # Process jobs
             job = self.getNextJob()
             while job is not None:
-                self.__processJob(job, barsFreq, instruments, bars)
+                self.__processJob(job)
                 job = self.getNextJob()
             self.getLogger().info("Finished running")
         except Exception as e:
             self.getLogger().exception("Finished running with errors: %s" % (e))
 
 
-def worker_process(strategyClass, address, port, workerName):
+def worker_process(strategyClass, address, port, workerName, barFeed):
     class MyWorker(Worker):
         def runStrategy(self, barFeed, *args, **kwargs):
             strat = strategyClass(barFeed, *args, **kwargs)
             strat.run()
-            return strat.getResult()
+            return strat.result
 
     # Create a worker and run it.
-    w = MyWorker(address, port, workerName)
+    w = MyWorker(address, port, workerName, barFeed)
+
     w.run()
 
 
-def run(strategyClass, address, port, workerCount=None, workerName=None):
+def run(strategyClass, address, port, workerCount=None, workerName=None, barFeed=None):
     """Executes one or more worker processes that will run a strategy with the bars and parameters supplied by the server.
 
     :param strategyClass: The strategy class.
@@ -146,6 +135,7 @@ def run(strategyClass, address, port, workerCount=None, workerName=None):
     :type workerCount: int.
     :param workerName: A name for the worker. A name that identifies the worker. If None, the hostname is used.
     :type workerName: string.
+    :param barFeed: shared bar feed. Not necessary,but you can provide to reduce memory cost.
     """
 
     assert (workerCount is None or workerCount > 0)
@@ -155,7 +145,8 @@ def run(strategyClass, address, port, workerCount=None, workerName=None):
     workers = []
     # Build the worker processes.
     for i in range(workerCount):
-        workers.append(multiprocessing.Process(target=worker_process, args=(strategyClass, address, port, workerName)))
+        workers.append(
+            multiprocessing.Process(target=worker_process, args=(strategyClass, address, port, workerName, barFeed)))
 
     # Start workers
     for process in workers:

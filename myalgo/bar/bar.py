@@ -60,20 +60,21 @@ class Bar:
 
         self.__volume = volume
 
-    def __getstate__(self):
-        return (
-            self.start_date,
-            self.end_date,
-            self.ask_open,
-            self.ask_close,
-            self.ask_high,
-            self.ask_low,
-            self.bid_open,
-            self.bid_high,
-            self.bid_low,
-            self.bid_close,
-            self.volume,
-        )
+    #
+    # def __getstate__(self):
+    #     return (
+    #         self.start_date,
+    #         self.end_date,
+    #         self.ask_open,
+    #         self.ask_close,
+    #         self.ask_high,
+    #         self.ask_low,
+    #         self.bid_open,
+    #         self.bid_high,
+    #         self.bid_low,
+    #         self.bid_close,
+    #         self.volume,
+    #     )
 
     @property
     def start_date(self):
@@ -132,6 +133,10 @@ class Bar:
         return self.out_price
 
     @property
+    def extra_columns(self):
+        return {}
+
+    @property
     def dict(self):
         return {
             "start_date": self.start_date,
@@ -144,6 +149,7 @@ class Bar:
             "bid_low": self.bid_low,
             "bid_high": self.bid_high,
             "bid_close": self.bid_close,
+            "volume": self.volume,
         }
 
     @staticmethod

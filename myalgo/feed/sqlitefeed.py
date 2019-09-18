@@ -9,9 +9,8 @@ from sqlalchemy import event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from myalgo.bar.bar import Bar
+from myalgo.bar.bar import Bar, Frequency
 from myalgo.feed.barfeed import BaseBarFeed
-from myalgo.feed.barfeed import Frequency
 from myalgo.logger import get_logger
 
 Base = declarative_base()
@@ -43,6 +42,11 @@ def make_bar_model(table_name):
     return BarModel
 
 
+table_names = {
+
+}
+
+
 class SQLiteFeed(BaseBarFeed):
     LOGGER_NAME = "SQLITE_FEED_LOGGER"
 
@@ -54,7 +58,11 @@ class SQLiteFeed(BaseBarFeed):
         self.__engine = create_engine(f'sqlite:///{file_name}')
         self.__DBSession = sessionmaker(bind=self.__engine)
         self.__logger = get_logger(SQLiteFeed.LOGGER_NAME)
-        self.__bar_model = make_bar_model(table_name)
+        if table_name in table_names.keys():
+            self.__bar_model = table_names[table_name]
+        else:
+            self.__bar_model = make_bar_model(table_name)
+            table_names[table_name] = self.__bar_model
 
         def before_cursor_execute(conn, cursor, statement,
                                   parameters, context, executemany):
@@ -89,7 +97,6 @@ class SQLiteFeed(BaseBarFeed):
         instruments = self.instruments
 
         assert len(instruments) > 0
-
 
         self.__logger.debug(
             f'loading data from database, for instruments: {instruments} from: {from_date} to: {to_date}')

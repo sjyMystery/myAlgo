@@ -4,21 +4,21 @@ import six
 
 import myalgo.logger as logger
 from myalgo.bar import Bar, Bars
+from myalgo.broker.base import BaseBroker
 from myalgo.broker.commission import Commission
-from myalgo.config import dispatchprio
 from myalgo.event import Event
-from myalgo.event import Subject
 from myalgo.feed.barfeed import BaseBarFeed
 from myalgo.order import LimitOrder, Action, Order, Execution, OrderEvent, State, MarketOrder, StopLimitOrder, StopOrder
 from myalgo.order.fill import FillInfo
 
 
-class BackTestBroker(Subject):
+class BackTestBroker(BaseBroker):
     LOGGER_NAME = "back_test_log"
 
     def __init__(self, cash: float, bar_feed: BaseBarFeed, commission: Commission, round_quantity=lambda x: int(x)):
 
-        super(BackTestBroker, self).__init__()
+        super(BaseBroker, self).__init__()
+
         self.__commission = commission
         self.__bar_feed = bar_feed
         self.__cash = self.__initial_cash = cash
@@ -59,10 +59,6 @@ class BackTestBroker(Subject):
     @property
     def started(self):
         return self.__started
-
-    @property
-    def dispatch_priority(self):
-        return dispatchprio.BROKER
 
     @property
     def next_order_id(self):
@@ -321,20 +317,10 @@ class BackTestBroker(Subject):
         super(BackTestBroker, self).start()
         self.__started = True
 
-    def stop(self):
-        pass
-
-    def join(self):
-        pass
-
     def eof(self):
         # If there are no more events in the barfeed, then there is nothing left for us to do since all processing took
         # place while processing barfeed events.
         return self.bar_feed.eof()
-
-    def dispatch(self):
-        # All events were already emitted while handling barfeed events.
-        pass
 
     def peek_datetime(self):
         return None
@@ -348,4 +334,3 @@ class BackTestBroker(Subject):
         self.__next_order_id = 0
         self.__active_orders = {}
         self.instruments = self.bar_feed.instruments
-

@@ -27,7 +27,6 @@ import threading
 import time
 
 from myalgo.optimizer import base
-from myalgo.optimizer import server
 from myalgo.optimizer import worker
 from myalgo.optimizer import xmlrpcserver
 
@@ -43,17 +42,17 @@ class ServerThread(threading.Thread):
         self.__results = self.__server.serve()
 
 
-def worker_process(strategyClass, port, logLevel):
+def worker_process(strategyClass, port, logLevel, barFeed):
     class Worker(worker.Worker):
         def runStrategy(self, barFeed, *args, **kwargs):
             strat = strategyClass(barFeed, *args, **kwargs)
             strat.run()
-            return strat.getResult()
+            return strat.result
 
     # Create a worker and run it.
     try:
         name = "worker-%s" % (os.getpid())
-        w = Worker("localhost", port, name)
+        w = Worker("localhost", port, name, barFeed)
         w.getLogger().setLevel(logLevel)
         w.run()
     except Exception as e:
@@ -82,7 +81,7 @@ def stop_process(p):
 
 
 def run_impl(strategyClass, barFeed, strategyParameters, batchSize, workerCount=None, logLevel=logging.ERROR,
-             resultSinc=None):
+             resultSinc=None, result_filename="result.sqlite"):
     if workerCount is None:
         workerCount = multiprocessing.cpu_count()
     assert workerCount > 0, "No workers"
@@ -101,7 +100,8 @@ def run_impl(strategyClass, barFeed, strategyParameters, batchSize, workerCount=
 
     # Create and start the server.
     logger.info("Starting server on port %s" % port)
-    srv = xmlrpcserver.Server(paramSource, resultSinc, barFeed, "localhost", port, autoStop=False, batchSize=batchSize)
+    srv = xmlrpcserver.Server(strategyClass.name, paramSource, resultSinc, barFeed, "localhost", port, autoStop=False,
+                              batchSize=batchSize, result_file=result_filename)
     serverThread = ServerThread(srv)
     serverThread.start()
     logger.info("Waiting for the server to be ready")
@@ -113,7 +113,7 @@ def run_impl(strategyClass, barFeed, strategyParameters, batchSize, workerCount=
         for i in range(workerCount):
             workers.append(multiprocessing.Process(
                 target=worker_process,
-                args=(strategyClass, port, logLevel))
+                args=(strategyClass, port, logLevel, barFeed))
             )
         # Start workers
         for process in workers:
@@ -122,6 +122,8 @@ def run_impl(strategyClass, barFeed, strategyParameters, batchSize, workerCount=
         # Wait for all jobs to complete.
         while srv.jobsPending():
             time.sleep(1)
+    except Exception as e:
+        logger.error(e)
     finally:
         # Stop workers
         for process in workers:
@@ -132,15 +134,10 @@ def run_impl(strategyClass, barFeed, strategyParameters, batchSize, workerCount=
         srv.stop()
         serverThread.join()
 
-        bestResult, bestParameters = resultSinc.getBest()
-        if bestResult is not None:
-            ret = server.Results(bestParameters.args, bestResult)
 
-    return ret
-
-
-def run(strategyClass, barFeed, strategyParameters, workerCount=None, logLevel=logging.ERROR, batchSize=200):
-    """Executes many instances of a strategy in parallel and finds the parameters that yield the best results.
+def run(strategyClass, barFeed, strategyParameters, workerCount=None, logLevel=logging.ERROR, batchSize=200,
+        result_file='result.sqlite'):
+    """Executes many instances of a strategy in parallel and finds the parameters that yield the best result_image.
 
     :param strategyClass: The strategy class.
     :param barFeed: The bar feed to use to backtest the strategy.
@@ -152,7 +149,8 @@ def run(strategyClass, barFeed, strategyParameters, workerCount=None, logLevel=l
     :param logLevel: The log level. Defaults to **logging.ERROR**.
     :param batchSize: The number of strategy executions that are delivered to each worker.
     :type batchSize: int.
-    :rtype: A :class:`Results` instance with the best results found.
+    :rtype: A :class:`Results` instance with the best result_image found.
     """
 
-    return run_impl(strategyClass, barFeed, strategyParameters, batchSize, workerCount=workerCount, logLevel=logLevel)
+    return run_impl(strategyClass, barFeed, strategyParameters, batchSize, workerCount=workerCount, logLevel=logLevel,
+                    result_filename=result_file)

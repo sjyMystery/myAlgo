@@ -1,5 +1,7 @@
-from .basic import BaseStrategy
+from .base import BaseStrategy
 from ..broker import BackTestBroker
+from ..broker.commission import Commission
+from ..feed.barfeed import BaseBarFeed
 from ..stratanalyzer.drawdown import DrawDown
 from ..stratanalyzer.returns import Returns
 from ..stratanalyzer.sharpe import SharpeRatio
@@ -15,12 +17,16 @@ The strategy should recv the id of params , which would be used to save the resu
 
 
 class BackTestStrategy(BaseStrategy):
+    name = 'BackTestStrategy'
 
     def onBars(self, datetime, bars):
         return NotImplementedError()
 
-    def __init__(self, broker: BackTestBroker):
-        super(BackTestStrategy, self).__init__(broker)
+    def __init__(self, feed: BaseBarFeed, cash: float, commission: Commission, round):
+        self.__start_cash = cash
+        self.__broker = BackTestBroker(cash, feed, commission=commission, round_quantity=round)
+
+        super(BackTestStrategy, self).__init__(self.__broker)
 
         self.__analyzers = {
             "ret": Returns(),
@@ -42,9 +48,17 @@ class BackTestStrategy(BaseStrategy):
 
     def calculate_effects(self):
 
+        if self.analyzers["trades"].getCount() == 0:
+            self.__effects = None
+            return {
+                "profit_rate": self.broker.equity / self.__start_cash,
+            }
+
         profits = self.analyzers["trades"].getProfits()
         losses = self.analyzers["trades"].getLosses()
-        if losses.mean() != 0:
+        if len(profits) is 0:
+            plr = 0
+        elif len(losses) > 0 and losses.mean() != 0:
             plr = profits.mean() / abs(losses.mean())
         else:
             plr = None
@@ -53,12 +67,14 @@ class BackTestStrategy(BaseStrategy):
             if self.analyzers["trades"].getCount() != 0 else None
 
         self.__effects = {
+            "profit_rate": self.broker.equity / self.__start_cash,
             "ret": self.analyzers["ret"].getCumulativeReturns()[-1] * 100,
-            "sharp": self.analyzers["sharpe"].getSharpeRatio(0.05),
+            "sharp": self.analyzers["sharpe"].getSharpeRatio(0.00),
             "dd": self.analyzers["dd"].getMaxDrawDown() * 100,
             "ddd": self.analyzers["dd"].getLongestDrawDownDuration(),
             "win_rate": win_rate,
             "plr": plr,
+            "trade_count": self.analyzers["trades"].getCount(),
         }
 
     @property
@@ -67,3 +83,7 @@ class BackTestStrategy(BaseStrategy):
 
     def onFinish(self, bars):
         self.calculate_effects()
+
+    @property
+    def result(self):
+        return self.__effects

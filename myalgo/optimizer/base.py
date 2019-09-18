@@ -52,7 +52,7 @@ class ParameterSource(object):
 
 class ResultSinc(object):
     """
-    Sinc for backtest results. This class is thread safe.
+    Sinc for backtest result_image. This class is thread safe.
     """
 
     def __init__(self):
@@ -62,7 +62,7 @@ class ResultSinc(object):
 
     def push(self, result, parameters):
         """
-        Push strategy results obtained by running the strategy with the given parameters.
+        Push strategy result_image obtained by running the strategy with the given parameters.
 
         :param result: The result obtained by running the strategy with the given parameters.
         :type result: float
@@ -71,10 +71,10 @@ class ResultSinc(object):
         """
         with self.__lock:
             self.onNewResult(result, parameters)
-            if result is not None and (self.__bestResult is None or result > self.__bestResult):
-                self.__bestResult = result
-                self.__bestParameters = parameters
-                self.onNewBestResult(result, parameters)
+            # if result is not None and (self.__bestResult is None or result > self.__bestResult):
+            #     self.__bestResult = result
+            #     self.__bestParameters = parameters
+            #     self.onNewBestResult(result, parameters)
 
     def getBest(self):
         with self.__lock:

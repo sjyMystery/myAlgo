@@ -1,8 +1,9 @@
 import abc
 
 from myalgo import logger
-from myalgo.broker import BackTestBroker
-from myalgo.event import Event, Dispatcher
+from myalgo.broker import BaseBroker
+from myalgo.event import Dispatcher
+from myalgo.event import Event
 from myalgo.order import Action, LimitOrder, Order
 from myalgo.strategy import position
 
@@ -10,7 +11,7 @@ from myalgo.strategy import position
 class BaseStrategy:
     LOGGER_NAME = "BaseStrategyLog"
 
-    def __init__(self, broker: BackTestBroker):
+    def __init__(self, broker: BaseBroker):
         self.__broker = broker
         self.__activePositions = set()
         self.__orderToPosition = {}
@@ -33,6 +34,75 @@ class BaseStrategy:
 
         # Initialize logging.
         self.__logger = logger.get_logger(BaseStrategy.LOGGER_NAME)
+
+        self.use_event_datetime_logs = True
+
+        self.__onEnterOkEvent = Event()
+        self.__onEnterCanceledEvent = Event()
+        self.__onExitOkEvent = Event()
+        self.__onExitCanceledEvent = Event()
+
+        self.__onEnterOkEvent.subscribe(self.onEnterOk)
+        self.__onEnterCanceledEvent.subscribe(self.onEnterCanceled)
+        self.__onExitOkEvent.subscribe(self.onExitOk)
+        self.__onExitCanceledEvent.subscribe(self.onExitCanceled)
+        self.__onEnterStartEvent = Event()
+        self.__onExitStartEvent = Event()
+
+        """
+            反正都要用，为何不把所有Positions管理起来呢
+        """
+        self.__positions = []
+        self.__onEnterStartEvent.subscribe(self.__on_enter_start)
+
+    def __on_enter_start(self, position):
+        self.__positions.append(position)
+
+    @property
+    def positions(self):
+        return self.__positions
+
+    @property
+    def enter_start_event(self):
+        return self.__onEnterStartEvent
+
+    @property
+    def exit_start_event(self):
+        return self.__onExitStartEvent
+
+    @property
+    def enter_ok_event(self):
+        return self.__onEnterOkEvent
+
+    @property
+    def exit_ok_event(self):
+        return self.__onExitOkEvent
+
+    @property
+    def enter_canceled_event(self):
+        return self.__onEnterCanceledEvent
+
+    @property
+    def exit_canceled_event(self):
+        return self.__onExitCanceledEvent
+
+    def notify_enter_start(self, position):
+        self.__onEnterStartEvent.emit(position)
+
+    def notify_exit_start(self, position):
+        self.__onExitStartEvent.emit(position)
+
+    def notify_enter_ok(self, position):
+        self.__onEnterOkEvent.emit(position)
+
+    def notify_enter_canceled(self, position):
+        self.__onEnterCanceledEvent.emit(position)
+
+    def notify_exit_canceled(self, position):
+        self.__onExitCanceledEvent.emit(position)
+
+    def notify_exit_ok(self, position):
+        self.__onExitOkEvent.emit(position)
 
     def reset(self, bars):
         self.__activePositions = set()
@@ -340,9 +410,9 @@ class BaseStrategy:
                     raise Exception("A different analyzer named '%s' was already attached" % name)
                 self.__namedAnalyzers[name] = strategyAnalyzer
 
-            strategyAnalyzer.beforeAttach(self)
+            strategyAnalyzer.beforeAttachImpl(self)
             self.__analyzers.append(strategyAnalyzer)
-            strategyAnalyzer.attached(self)
+            strategyAnalyzer.attached()
 
     """
         下面开始是事件
@@ -447,7 +517,7 @@ class BaseStrategy:
         # THE ORDER HERE IS VERY IMPORTANT
 
         # 1: Let analyzers process bars.
-        self.__notifyAnalyzers(lambda s: s.beforeOnBars(self, bars2))
+        self.__notifyAnalyzers(lambda s: s.beforeOnBars(bars2))
         # 2: Let the strategy process current bars and submit orders.
         self.onBars(dateTime, bars2)
 
@@ -457,7 +527,6 @@ class BaseStrategy:
     def run(self):
         """Call once (**and only once**) to run the strategy."""
         self.__dispatcher.run()
-
         if self.bar_feed.last_bars is not None:
             self.onFinish(self.bar_feed.last_bars)
         else:

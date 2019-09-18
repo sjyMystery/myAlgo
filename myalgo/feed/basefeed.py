@@ -35,6 +35,10 @@ class BaseFeed(Subject):
         self.__event = Event()
         self.__maxLen = maxLen
 
+    @property
+    def max_len(self):
+        return self.__maxLen
+
     def reset(self):
         keys = list(self.__ds.keys())
         self.__ds = {}
@@ -68,8 +72,12 @@ class BaseFeed(Subject):
                 except KeyError:
                     ds = self.createDataSeries(key, self.__maxLen)
                     self.__ds[key] = ds
+                """
+                    这里key,value对应于上层分别是种类和Feed的填充物，比如instrument和Bar
+                    整个循环把Feed里面所有种类的每一项加到DS后面去
+                """
                 ds.appendWithDateTime(dateTime, value)
-        return (dateTime, values)
+        return dateTime, values
 
     def __iter__(self):
         return feed_iterator(self)
@@ -93,9 +101,7 @@ class BaseFeed(Subject):
         return list(self.__ds.keys())
 
     def __getitem__(self, key):
-        """Returns the :class:`pyalgotrade.dataseries.DataSeries` for a given key."""
         return self.__ds[key]
 
     def __contains__(self, key):
-        """Returns True if a :class:`pyalgotrade.dataseries.DataSeries` for the given key is available."""
         return key in self.__ds

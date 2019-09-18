@@ -40,7 +40,7 @@ class Dispatcher(object):
             # Find the position according to the subject's priority.
             pos = 0
             for s in self.__subjects:
-                if s.dispatch_priority is dispatchprio.LAST or subject.dispatch_priority < s.dispatch_priority:
+                if s.dispatch_priority is dispatchprio.LAST or subject.dispatch_priority() < s.dispatch_priority:
                     break
                 pos += 1
             self.__subjects.insert(pos, subject)

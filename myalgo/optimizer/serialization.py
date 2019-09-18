@@ -11,4 +11,5 @@ def dumps(obj):
 def loads(serialized):
     if six.PY3 and isinstance(serialized, xmlrpc_client.Binary):
         serialized = serialized.data
-    return pickle.loads(serialized)
+    rtv = pickle.loads(serialized)
+    return rtv
