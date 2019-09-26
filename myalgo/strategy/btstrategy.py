@@ -1,3 +1,5 @@
+import numpy as np
+
 from .base import BaseStrategy
 from ..broker import BackTestBroker
 from ..broker.commission import Commission
@@ -5,7 +7,8 @@ from ..feed.barfeed import BaseBarFeed
 from ..stratanalyzer.drawdown import DrawDown
 from ..stratanalyzer.returns import Returns
 from ..stratanalyzer.sharpe import SharpeRatio
-from ..stratanalyzer.trades import Trades
+
+# from ..stratanalyzer.trades import Trades
 
 """
 This class mainly used to test some strategy.
@@ -32,13 +35,12 @@ class BackTestStrategy(BaseStrategy):
             "ret": Returns(),
             "sharpe": SharpeRatio(),
             "dd": DrawDown(),
-            "trades": Trades()
+            # "trades": Trades()
         }
 
         self.attachAnalyzer(self.__analyzers["ret"])
         self.attachAnalyzer(self.__analyzers["sharpe"])
         self.attachAnalyzer(self.__analyzers["dd"])
-        self.attachAnalyzer(self.__analyzers["trades"])
 
         self.__effects = None
 
@@ -46,16 +48,35 @@ class BackTestStrategy(BaseStrategy):
     def analyzers(self):
         return self.__analyzers
 
+    def calculate_trade(self):
+        positions = self.positions
+        p = []
+        n = []
+        e = []
+        for position in positions:
+            ret = position.getReturn()
+            if ret > 0:
+                p += [ret]
+            elif ret < 0:
+                n += [ret]
+            else:
+                e += [ret]
+        return np.asarray(p), np.asarray(n), np.asarray(e)
+
     def calculate_effects(self):
 
-        if self.analyzers["trades"].getCount() == 0:
+        positive, negative, even = self.calculate_trade()
+
+        position_count = len(self.positions)
+
+        if position_count == 0:
             self.__effects = None
             return {
                 "profit_rate": self.broker.equity / self.__start_cash,
             }
 
-        profits = self.analyzers["trades"].getProfits()
-        losses = self.analyzers["trades"].getLosses()
+        profits = positive
+        losses = negative
         if len(profits) is 0:
             plr = 0
         elif len(losses) > 0 and losses.mean() != 0:
@@ -63,8 +84,8 @@ class BackTestStrategy(BaseStrategy):
         else:
             plr = None
 
-        win_rate = self.analyzers["trades"].getProfitableCount() / self.analyzers["trades"].getCount() * 100 \
-            if self.analyzers["trades"].getCount() != 0 else None
+        win_rate = positive.shape[0] / position_count * 100 \
+            if position_count != 0 else None
 
         self.__effects = {
             "profit_rate": self.broker.equity / self.__start_cash,
@@ -74,7 +95,7 @@ class BackTestStrategy(BaseStrategy):
             "ddd": self.analyzers["dd"].getLongestDrawDownDuration(),
             "win_rate": win_rate,
             "plr": plr,
-            "trade_count": self.analyzers["trades"].getCount(),
+            "trade_count": position_count,
         }
 
     @property

@@ -146,7 +146,7 @@ class Position(object):
         self.__entryDateTime = None
         self.__exitOrder = None
         self.__exitDateTime = None
-        self.__posTracker = PositionTracker(entryOrder.round_quantity)
+        self.__posTracker = PositionTracker()
         self.__allOrNone = allOrNone
 
         self.switchState(WaitingEntryState())

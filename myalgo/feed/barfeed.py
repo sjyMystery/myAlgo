@@ -4,11 +4,11 @@ from myalgo.dataseries import bards
 from myalgo.event import Event
 from myalgo.feed import basefeed
 
-
 class BaseBarFeed(basefeed.BaseFeed):
     def __init__(self, frequency, instruments, bars=None, maxLen=None):
 
         self.__bars = bars if bars is not None else []
+        self.__bar_len = len(self.__bars)
 
         self.__bar_events = Event()
         self.__feed_reset_event = Event()
@@ -61,7 +61,7 @@ class BaseBarFeed(basefeed.BaseFeed):
 
         :return:
         """
-        if self.__current_bar_index >= len(self.bars):
+        if self.__current_bar_index >= self.__bar_len:
             return None
 
         return self.bars[self.__current_bar_index]
@@ -78,7 +78,7 @@ class BaseBarFeed(basefeed.BaseFeed):
 
     @property
     def last_bars(self):
-        return self.bars[self.pos - 1] if self.pos > 0 and self.__current_bar_index < len(self.bars) + 1 else None
+        return self.__bars[self.pos - 1] if self.pos > 0 and self.__current_bar_index < self.__bar_len + 1 else None
 
     def last_bar(self, instrument):
         return self.last_bars.bar(instrument) if self.last_bars is not None else None
@@ -94,7 +94,7 @@ class BaseBarFeed(basefeed.BaseFeed):
         pass
 
     def eof(self):
-        return self.__current_bar_index + 1 >= len(self.bars)
+        return self.__current_bar_index + 1 >= self.__bar_len
 
     def peek_datetime(self):
         return self.current_datetime
@@ -108,6 +108,7 @@ class BaseBarFeed(basefeed.BaseFeed):
     @bars.setter
     def bars(self, value):
         self.__bars = [Bars(bar_dict=i) for i in value]
+        self.__bar_len = len(self.__bars)
         self.__current_bar_index = 0
         self.__started = False
         self.__feed_reset_event.emit(self.__bars)

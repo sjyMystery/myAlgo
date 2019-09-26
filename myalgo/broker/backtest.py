@@ -103,7 +103,7 @@ class BackTestBroker(BaseBroker):
     @property
     def equity(self):
         """Returns the portfolio value (cash + shares * price)."""
-        ret = self.cash()
+        ret = self.__cash
         for instrument, shares in six.iteritems(self.__quantities):
             if self.__bar_feed.last_bar(instrument) is None:
                 continue

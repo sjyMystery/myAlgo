@@ -1,12 +1,22 @@
 import math
 
+from numba import jitclass, float32
+
 from myalgo import dataseries
 from myalgo import stratanalyzer
 from myalgo.event import Event
 
+spec = [
+    ('__lastValue', float32),  # a simple scalar field
+    ('__flows', float32),  # an array field
+    ('__lastPeriodRet', float32),  # an array field
+    ('__cumRet', float32),  # an array field
+]
+
 
 # Helper class to calculate time-weighted returns in a portfolio.
 # Check http://www.wikinvest.com/wiki/Time-weighted_return
+@jitclass(spec)
 class TimeWeightedReturns(object):
     def __init__(self, initialValue):
         self.__lastValue = initialValue
@@ -45,8 +55,7 @@ class TimeWeightedReturns(object):
 
 # Helper class to calculate PnL and returns over a single instrument (not the whole portfolio).
 class PositionTracker(object):
-    def __init__(self, round_quantity):
-        self.round_quantity = round_quantity
+    def __init__(self):
         self.reset()
 
     def reset(self):
@@ -97,7 +106,7 @@ class PositionTracker(object):
         self.__avgOpenPrice = self.__avgPrice
 
     def __extendCurrentPosition(self, quantity, price):
-        newPosition = self.round_quantity(self.__position + quantity)
+        newPosition = int(self.__position + quantity)
         self.__avgPrice = (self.__avgPrice * abs(self.__position) + price * abs(quantity)) / abs(float(newPosition))
         self.__position = newPosition
         self.__totalCommited = self.__avgPrice * abs(self.__position)
@@ -105,11 +114,11 @@ class PositionTracker(object):
 
     def __reduceCurrentPosition(self, quantity, price):
         # Check that we're closing or reducing partially
-        assert self.round_quantity(abs(self.__position) - abs(quantity)) >= 0
+        assert int(abs(self.__position) - abs(quantity)) >= 0
         pnl = (price - self.__avgPrice) * quantity * -1
 
         self.__pnl += pnl
-        self.__position = self.round_quantity(self.__position + quantity)
+        self.__position = int(self.__position + quantity)
         if self.__position == 0:
             self.__avgPrice = 0.0
 

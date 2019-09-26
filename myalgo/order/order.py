@@ -93,6 +93,8 @@ class Order:
         return self.__quantity
 
     def execute(self, execution: Execution):
+        assert self.remain >= execution.quantity, f'execution quantity:{execution.quantity} > {self.remain}'
+        assert (execution.quantity > 0)
         self.__execute(execution)
         self.__executionInfo.append(execution)
 
@@ -167,9 +169,6 @@ class Order:
 
     def __execute(self, execution: Execution):
 
-        assert self.remain >= execution.quantity, f'execution quantity:{execution.quantity} > {self.remain}'
-        assert (execution.quantity > 0)
-
         self.remain -= execution.quantity
         self.filled += execution.quantity
         self.total_cost += execution.quantity * execution.price
@@ -221,7 +220,7 @@ class LimitOrder(Order):
         return self.__limitPrice
 
     def __repr__(self):
-        return super(LimitOrder, self).__repr__()+f'\t PRICE:{self.price}'
+        return super(LimitOrder, self).__repr__() + f'\t PRICE:{self.price}'
 
     def process(self, broker, bar1: Bar, bar2: Bar):
         price = fill.get_limit_price_trigger(

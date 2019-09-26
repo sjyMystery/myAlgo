@@ -1,7 +1,14 @@
 import datetime
 
+from numba import jit, float32
+
 from myalgo import stratanalyzer
 from myalgo.bar import Bars
+
+
+@jit(float32(float32, float32, float32))
+def delta_ratio(a, b, c):
+    return (a - b) / c
 
 
 class DrawDownHelper(object):
@@ -17,10 +24,10 @@ class DrawDownHelper(object):
         return self.__lastDateTime - self.__highDateTime
 
     def getMaxDrawDown(self):
-        return (self.__lowWatermark - self.__highWatermark) / float(self.__highWatermark)
+        return delta_ratio(self.__lowWatermark, self.__highWatermark, float(self.__highWatermark))
 
     def getCurrentDrawDown(self):
-        return (self.__lastLow - self.__highWatermark) / float(self.__highWatermark)
+        return delta_ratio(self.__lastLow, self.__highWatermark, float(self.__highWatermark))
 
     def update(self, dateTime, low, high):
         assert (low <= high)

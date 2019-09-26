@@ -27,14 +27,13 @@ class HighLowEventWindow(indicator.EventWindow):
         self.__useMin = useMin
 
     def getValue(self):
-        ret = None
         if self.windowFull():
             values = self.getValues()
             if self.__useMin:
-                ret = values.min()
+                return values.min()
             else:
-                ret = values.max()
-        return ret
+                return values.max()
+        return None
 
 
 class High(indicator.EventBasedFilter):
