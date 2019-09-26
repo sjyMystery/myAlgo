@@ -2,7 +2,7 @@ from datetime import datetime
 
 import six
 
-import myalgo.logger as logger
+import myalgo.logger
 from myalgo.bar import Bar, Bars
 from myalgo.broker.base import BaseBroker
 from myalgo.broker.commission import Commission
@@ -26,7 +26,7 @@ class BackTestBroker(BaseBroker):
         self.__next_order_id = 0
         self.__active_orders = {}
         self.__quantities = {}
-        self.__logger = logger.get_logger("Broker_log")
+        self.__logger = myalgo.logger.get_logger("Broker_log")
 
         self.__order_events = Event()
 
@@ -156,7 +156,7 @@ class BackTestBroker(BaseBroker):
             # Update the order before updating internal state since addExecutionInfo may raise.
             # addExecutionInfo should switch the order state.
             execution = Execution(price, quantity, commission, datetime_)
-            order_.append_execution(execution)
+            order_.execute(execution)
 
             # Commit the order execution.
             self.__cash = resulting_cash
@@ -169,9 +169,11 @@ class BackTestBroker(BaseBroker):
             # Notify the order update
             if order_.is_filled:
                 self.unregister_order(order_)
-                self.notify_order_event(OrderEvent(order_, State.FILLED, execution))
+                self.notify_order_event(OrderEvent(
+                    order_, State.FILLED, execution))
             elif order_.is_partially_filled:
-                self.notify_order_event(OrderEvent(order_, State.PARTIALLY_FILLED, execution))
+                self.notify_order_event(OrderEvent(
+                    order_, State.PARTIALLY_FILLED, execution))
             else:
                 assert False
         else:
@@ -205,7 +207,8 @@ class BackTestBroker(BaseBroker):
                 ret = False
                 self.unregister_order(order_)
                 order_.canceled(current)
-                self.notify_order_event(OrderEvent(order_, State.CANCELED, "Expired"))
+                self.notify_order_event(OrderEvent(
+                    order_, State.CANCELED, "Expired"))
 
         return ret
 
@@ -219,7 +222,8 @@ class BackTestBroker(BaseBroker):
             if expired:
                 self.unregister_order(order_)
                 order_.canceled(bar_.start_date)
-                self.notify_order_event(OrderEvent(order_, State.CANCELLED, "Expired"))
+                self.notify_order_event(OrderEvent(
+                    order_, State.CANCELLED, "Expired"))
 
     def __process_order(self, order_, bar1: Bar, bar2: Bar):
         if not self.__preprocess_order(order_, bar2):
@@ -271,7 +275,8 @@ class BackTestBroker(BaseBroker):
         if instrument is None:
             ret = list(self.__active_orders.values())
         else:
-            ret = [order_ for order_ in self.__active_orders.values() if order_.instrument == instrument]
+            ret = [order_ for order_ in self.__active_orders.values()
+                   if order_.instrument == instrument]
         return ret
 
     def cancel_order(self, order_: Order):
@@ -284,7 +289,8 @@ class BackTestBroker(BaseBroker):
         self.unregister_order(active_order)
         active_order.canceled(self.current_datetime)
         self.notify_order_event(
-            OrderEvent(active_order, State.CANCELED, "User requested cancellation")
+            OrderEvent(active_order, State.CANCELED,
+                       "User requested cancellation")
         )
 
     @property

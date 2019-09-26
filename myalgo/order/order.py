@@ -1,5 +1,4 @@
 import abc
-import functools
 from datetime import datetime
 
 from myalgo.bar import Bar
@@ -11,7 +10,7 @@ from myalgo.order.type import Type
 
 
 class Order:
-    def __init__(self, type_: Type, action: Action, instrument, quantity: float, round_quantity=int):
+    def __init__(self, type_: Type, action: Action, instrument, quantity: int, round_quantity=int):
         assert quantity is not None and quantity > 0
         assert type_ in Type
 
@@ -28,6 +27,13 @@ class Order:
         self.__submitted_at = None
         self.__canceled_at = None
         self.__accepted_at = None
+
+        self.total_cost = 0.0
+        self.total_commission = 0.0
+        self.avg_fill_price = 0.0
+        self.filled = 0
+        self.remain = quantity
+        self.state = State.INITIAL
 
     def __repr__(self):
         return f'{self.instrument} {self.type} {self.action} {self.state} QUANT:{self.quantity}'
@@ -86,7 +92,8 @@ class Order:
     def quantity(self):
         return self.__quantity
 
-    def append_execution(self, execution: Execution):
+    def execute(self, execution: Execution):
+        self.__execute(execution)
         self.__executionInfo.append(execution)
 
     @property
@@ -94,50 +101,28 @@ class Order:
         return self.__executionInfo
 
     @property
-    def filled(self):
-        def sum_quantity(x, y):
-            return x + y.quantity
-
-        return functools.reduce(sum_quantity, self.executions, 0)
-
-    @property
     def filled_cost(self):
-        def sum_total(x, y):
-            return x + y.total
-
-        return functools.reduce(sum_total, self.executions, 0)
-
-    @property
-    def total_commission(self):
-        def sum_total(x, y: Execution):
-            return x + y.commission
-
-        return functools.reduce(sum_total, self.executions, 0)
-
-    @property
-    def avg_fill_price(self):
-        assert self.filled , 'order not filled at all!'
-        return self.filled_cost / float(self.filled)
-
-    @property
-    def remain(self):
-        return self.__roundQuantity(self.quantity - self.filled)
+        return self.total_cost
 
     @property
     def id(self):
         return self.__id
 
     def submitted(self, _id, at: datetime):
+        assert (self.state == State.INITIAL)
         self.__id = _id
         self.__submitted_at = at
+        self.state = State.SUBMITTED
         return self
 
     def canceled(self, at: datetime):
         self.__canceled_at = at
+        self.state = State.CANCELED
         return self
 
     def accepted(self, at: datetime):
         self.__accepted_at = at
+        self.state = State.ACCEPTED
         return self
 
     @property
@@ -153,25 +138,8 @@ class Order:
         return self.__accepted_at
 
     @property
-    def state(self):
-        if self.canceled_at is not None:
-            return State.CANCELED
-        if self.submitted_at is None:
-            return State.INITIAL
-
-        if self.accepted_at is None:
-            return State.SUBMITTED
-
-        if self.filled is 0:
-            return State.ACCEPTED
-        elif self.remain is 0:
-            return State.FILLED
-        else:
-            return State.PARTIALLY_FILLED
-
-    @property
     def is_canceled(self):
-        return self.canceled_at is not None
+        return self.state == State.CANCELLED
 
     @property
     def is_submitted(self):
@@ -195,9 +163,27 @@ class Order:
 
     @property
     def finish_datetime(self):
-        if self.executions is not None and len(self.executions) > 0:
-            return self.executions[-1].datetime
-        return None
+        return self.filled_at
+
+    def __execute(self, execution: Execution):
+
+        assert self.remain >= execution.quantity, f'execution quantity:{execution.quantity} > {self.remain}'
+        assert (execution.quantity > 0)
+
+        self.remain -= execution.quantity
+        self.filled += execution.quantity
+        self.total_cost += execution.quantity * execution.price
+        self.avg_fill_price = self.total_cost / float(self.filled)
+        self.total_commission += execution.commission
+
+        self.__executionInfo.append(
+            execution)
+
+        if self.remain > 0:
+            self.state = State.PARTIALLY_FILLED
+        else:
+            self.state = State.FILLED
+            self.filled_at = execution.datetime
 
 
 class MarketOrder(Order):
@@ -206,7 +192,8 @@ class MarketOrder(Order):
     """
 
     def __init__(self, action, instrument, quantity, on_close, round_quantity):
-        super(MarketOrder, self).__init__(Type.MARKET, action, instrument, quantity, round_quantity)
+        super(MarketOrder, self).__init__(Type.MARKET,
+                                          action, instrument, quantity, round_quantity)
         self.__onClose = on_close
 
     @property
@@ -224,7 +211,8 @@ class MarketOrder(Order):
 
 class LimitOrder(Order):
     def __init__(self, action: Action, instrument: str, limit_price: float, quantity: float, round_quantity=int):
-        super(LimitOrder, self).__init__(Type.LIMIT, action, instrument, quantity, round_quantity)
+        super(LimitOrder, self).__init__(Type.LIMIT,
+                                         action, instrument, quantity, round_quantity)
         self.__limitPrice = limit_price
 
     @property
@@ -234,8 +222,10 @@ class LimitOrder(Order):
 
     def __repr__(self):
         return super(LimitOrder, self).__repr__()+f'\t PRICE:{self.price}'
+
     def process(self, broker, bar1: Bar, bar2: Bar):
-        price = fill.get_limit_price_trigger(self.action, self.price, bar1, bar2)
+        price = fill.get_limit_price_trigger(
+            self.action, self.price, bar1, bar2)
         return None if price is None else fill.FillInfo(price, self.quantity)
 
 
@@ -248,7 +238,8 @@ class StopOrder(Order):
     """
 
     def __init__(self, action, instrument, price, quantity, round_quantity):
-        super(StopOrder, self).__init__(Type.STOP, action, instrument, quantity, round_quantity)
+        super(StopOrder, self).__init__(Type.STOP, action,
+                                        instrument, quantity, round_quantity)
 
         self.__stopPrice = price
         self.__stopHit = False
@@ -265,7 +256,8 @@ class StopOrder(Order):
     def process(self, broker, bar1: Bar, bar2: Bar):
         price_trigger = None
         if not self.__stopHit:
-            price_trigger = fill.get_stop_price_trigger(self.action, self.price, bar1, bar2)
+            price_trigger = fill.get_stop_price_trigger(
+                self.action, self.price, bar1, bar2)
         if price_trigger is not None:
             self.__stopHit = True
         if self.stop_hit:
@@ -290,7 +282,8 @@ class StopLimitOrder(Order):
     """
 
     def __init__(self, action, instrument, stop_price, limit_price, quantity, round_quantity):
-        super(StopLimitOrder, self).__init__(Type.STOP_LIMIT, action, instrument, quantity, round_quantity)
+        super(StopLimitOrder, self).__init__(Type.STOP_LIMIT,
+                                             action, instrument, quantity, round_quantity)
 
         self.__stopPrice = stop_price
         self.__limitPrice = limit_price
@@ -313,7 +306,8 @@ class StopLimitOrder(Order):
     def process(self, broker, bar1: Bar, bar2: Bar):
         price_trigger = None
         if not self.__stopHit:
-            price_trigger = fill.get_stop_price_trigger(self.action, self.stop_price, bar1, bar2)
+            price_trigger = fill.get_stop_price_trigger(
+                self.action, self.stop_price, bar1, bar2)
 
         self.__stopHit = price_trigger is not None
 

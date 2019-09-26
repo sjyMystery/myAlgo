@@ -3,12 +3,13 @@ from queue import Queue
 
 from myalgo import strategy
 from myalgo.broker import NoCommission
-from myalgo.indicator import highlow, macd
+from myalgo.indicator import highlow
 
 
 class OrindaryStr(strategy.BackTestStrategy):
     def __init__(self, feed, p1, p2, instrument):
-        super(OrindaryStr, self).__init__(feed, 10000, round=lambda x: int(x), commission=NoCommission())
+        super(OrindaryStr, self).__init__(feed, 10000,
+                                          round=lambda x: int(x), commission=NoCommission())
 
         self.stop_rate = 0.0050
 
@@ -16,7 +17,6 @@ class OrindaryStr(strategy.BackTestStrategy):
         self.__priceDS = feed[instrument].price
         self.__high = highlow.High(self.__priceDS, 60 * 24)
         self.__low = highlow.Low(self.__priceDS, 60 * 24)
-        self.__macd_normal = macd.MACD(self.__priceDS, 12, 26, 9)
         self.__p1 = p1
         self.__p2 = p2
         self.__pos = None
@@ -41,6 +41,8 @@ class OrindaryStr(strategy.BackTestStrategy):
 
     def onExitOk(self, position):
         # self.__positions.append(position)
+        self.logger.info(f'Exit at:{position.getExitOrder().avg_fill_price}')
+
         self.__pos = None
         self.__stopping = False
 
@@ -52,15 +54,18 @@ class OrindaryStr(strategy.BackTestStrategy):
         position.exitLimit(position.getEntryOrder().avg_fill_price + self.__range * (1 + self.__p2),
                            True)
 
+        self.logger.info(f'Enter at:{position.getEntryOrder().avg_fill_price}')
+
     def onBars(self, datetime, bars):
+
         # Wait for enough bars to be available to calculate SMA and RSI.
         if self.__high[-1] is None or self.__low[-1] is None:
             return
 
         if self.isPeriodStart(datetime):
-            if self.__macd_normal is not None and self.__macd_normal[-1] <= 0.0001:
-                self.enterPeriod(bars)
-
+            # if self.__vol is not None and self.__vol[-1] <= 0:
+            self.enterPeriod(bars)
+            
         if self.__pos is not None and not self.__stopping:
             # 这表明位置已经建立，但是没有被强行平仓，那么考虑强行平仓的可能性
             if self.timeOut(datetime) or (self.__pos.entryFilled() and self.stopHit(bars)):
@@ -71,6 +76,7 @@ class OrindaryStr(strategy.BackTestStrategy):
     """
 
     def isPeriodStart(self, datetime):
+
         if datetime.hour % 4 == 0 and datetime.minute is 0 and datetime.second is 0:
             return True
         else:
@@ -116,7 +122,8 @@ class OrindaryStr(strategy.BackTestStrategy):
             return
         quantity = int(self.usable_cash / price)
 
-        self.__pos = self.enterLongLimit(self.__instrument, price, quantity, True)
+        self.__pos = self.enterLongLimit(
+            self.__instrument, price, quantity, True)
 
     @property
     def usable_cash(self):
