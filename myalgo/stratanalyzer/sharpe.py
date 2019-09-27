@@ -4,6 +4,8 @@ from myalgo import stratanalyzer
 from myalgo.stratanalyzer import returns
 from myalgo.utils import stats
 
+from numba import njit
+
 
 def days_traded(begin, end):
     delta = end - begin

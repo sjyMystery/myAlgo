@@ -4,3 +4,6 @@ build
 dist
 myalgo.egg-info
 test
+*.pyc
+*.ipynb
+*.h5

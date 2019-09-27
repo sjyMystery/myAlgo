@@ -3,3 +3,4 @@ sqlalchemy
 pymysql
 pandas
 numpy
+numba

@@ -8,8 +8,9 @@ instrument = 'EURCHF'
 p1 = 0.31
 p2 = 0.11
 
-start = ('2012-01-01')
-end = ('2012-12-01')
+start = ('2013-11-01')
+end = ('2013-12-01')
+
 
 # The if __name__ == '__main__' part is necessary if running on Windows.
 def main():
@@ -18,7 +19,7 @@ def main():
     start_time = datetime.datetime.now()
 
     feed = DataFrameFeed(instruments=[instrument],
-                         path='ratio.h5')
+                         path='ratio.h5', maxLen=24 * 60)
     feed.load_data(start, end)
     s = orindinary_plus.OrindaryStr(feed, p1, p2, instrument)
     s.logger.level = logging.DEBUG

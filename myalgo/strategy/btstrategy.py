@@ -35,7 +35,6 @@ class BackTestStrategy(BaseStrategy):
             "ret": Returns(),
             "sharpe": SharpeRatio(),
             "dd": DrawDown(),
-            # "trades": Trades()
         }
 
         self.attachAnalyzer(self.__analyzers["ret"])
@@ -43,6 +42,12 @@ class BackTestStrategy(BaseStrategy):
         self.attachAnalyzer(self.__analyzers["dd"])
 
         self.__effects = None
+
+        """
+            这里设置了一个缓冲区来暂存所有的序列
+        """
+        self.series_buffer = np.zeros((len(feed.bars), 9))
+        self.time_buffer = np.zeros((len(feed.bars)))
 
     @property
     def analyzers(self):
