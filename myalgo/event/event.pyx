@@ -1,4 +1,8 @@
-class Event(object):
+cdef class Event:
+    cdef list __handlers
+    cdef list __deferred
+    cdef int __emitting
+
     def __init__(self):
         self.__handlers = []
         self.__deferred = []
@@ -32,6 +36,7 @@ class Event(object):
             self.__unsubscribe_impl(handler)
 
     def emit(self, *args, **kwargs):
+
         try:
             self.__emitting += 1
             for handler in self.__handlers:
@@ -40,4 +45,3 @@ class Event(object):
             self.__emitting -= 1
             if not self.__emitting:
                 self.__apply_changes()
-

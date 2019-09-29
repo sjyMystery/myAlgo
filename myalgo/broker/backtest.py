@@ -17,8 +17,6 @@ class BackTestBroker(BaseBroker):
 
     def __init__(self, cash: float, bar_feed: BaseBarFeed, commission: Commission, round_quantity=lambda x: int(x)):
 
-        super(BaseBroker, self).__init__()
-
         self.__commission = commission
         self.__bar_feed = bar_feed
         self.__cash = self.__initial_cash = cash
@@ -36,22 +34,11 @@ class BackTestBroker(BaseBroker):
         self.__bar_feed.feed_reset_event.subscribe(self.__on_feed_change)
         self.__started = False
 
-        self.instruments = bar_feed.instruments
-
-    @property
-    def instruments(self):
-        return self.__instruments
+        super(BaseBroker, self).__init__(bar_feed.instruments)
 
     @property
     def quantities(self):
         return self.__quantities
-
-    @instruments.setter
-    def instruments(self, lists):
-        assert not self.started, 'should not change instrument when started'
-        self.__instruments = lists
-        for instrument in lists:
-            self.__quantities[instrument] = 0
 
     def __on_feed_change(self, bars):
         self.__reset()

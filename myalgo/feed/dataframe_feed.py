@@ -1,9 +1,9 @@
-from myalgo.feed.barfeed import BaseBarFeed
-from myalgo.bar.bar import Bar, Frequency
-from myalgo.logger import get_logger
-import pandas as pd
 import numpy as np
-import datetime
+import pandas as pd
+
+from myalgo.bar.bar import Bar, Frequency
+from myalgo.feed.barfeed import BaseBarFeed
+from myalgo.logger import get_logger
 
 
 class HistoryStore:
@@ -39,9 +39,9 @@ class History:
 
 
 class DataFrameFeed(BaseBarFeed):
-    def __init__(self, path, instruments, frequency=Frequency.MINUTE,maxLen=None):
+    def __init__(self, path, instruments, frequency=Frequency.MINUTE, maxLen=None):
 
-        super(DataFrameFeed, self).__init__(frequency, instruments, None,maxLen)
+        super(DataFrameFeed, self).__init__(frequency, instruments, None, maxLen)
 
         self.store = pd.HDFStore(path)
 
@@ -57,7 +57,6 @@ class DataFrameFeed(BaseBarFeed):
         length = []
 
         for instrument in instruments:
-
             df = self.store.get(instrument)
 
             df = df[start:end]
@@ -75,8 +74,9 @@ class DataFrameFeed(BaseBarFeed):
             new_dicts = {}
             for inst in instruments:
                 t, bo, bh, bl, bc, ao, ah, al, ac = data_dicts[inst][i]
-                new_dicts[inst] = Bar(
-                    t.astype('M8[ms]').astype('O'), t.astype('M8[ms]').astype('O')+datetime.timedelta(seconds=self.frequency.value), ao, ac, ah, al, bo, bc, bh, bl, 0)
+                t = np.datetime64(t, 'm')
+                new_dicts[inst] = Bar.from_bar(t, t + self.frequency, ao, ac, ah, al,
+                                               bo, bc, bh, bl, 0)
             return new_dicts
 
         result = [get_instrument(i) for i in range(m_length)]

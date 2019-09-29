@@ -2,6 +2,7 @@ import abc
 
 from myalgo import logger
 from myalgo.broker import BaseBroker
+from myalgo.dataseries import BarDataSeries
 from myalgo.event import Dispatcher
 from myalgo.event import Event
 from myalgo.order import Action, LimitOrder, Order
@@ -11,7 +12,7 @@ from myalgo.strategy import position
 class BaseStrategy:
     LOGGER_NAME = "BaseStrategyLog"
 
-    def __init__(self, broker: BaseBroker):
+    def __init__(self, broker: BaseBroker, series_max_len=None):
         self.__broker = broker
         self.__activePositions = set()
         self.__orderToPosition = {}
@@ -48,6 +49,19 @@ class BaseStrategy:
         self.__onExitCanceledEvent.subscribe(self.onExitCanceled)
         self.__onEnterStartEvent = Event()
         self.__onExitStartEvent = Event()
+
+        """
+            我们尝试把数据序列记在策略中
+            TODO: 对于离线的回测，这个过程可以利用本来的数据
+        """
+
+        instruments = broker.instruments
+
+        self.bar_series = dict()
+        self.max_series_length = series_max_len
+
+        for instrument in instruments:
+            self.bar_series[instrument] = BarDataSeries(max_len=series_max_len)
 
         """
             反正都要用，为何不把所有Positions管理起来呢
@@ -112,6 +126,8 @@ class BaseStrategy:
         self.__namedAnalyzers = {}
         self.__resampledBarFeeds = []
         self.__dispatcher = Dispatcher()
+        for series in self.bar_series.values():
+            series.reset(self.max_series_length)
 
     @property
     def use_event_datetime_logs(self):
@@ -190,9 +206,11 @@ class BaseStrategy:
 
         ret = None
         if quantity > 0:
-            ret = self.broker.create_stop_limit_order(Action.BUY, instrument, stopPrice, limitPrice, quantity)
+            ret = self.broker.create_stop_limit_order(
+                Action.BUY, instrument, stopPrice, limitPrice, quantity)
         elif quantity < 0:
-            ret = self.broker.create_stop_limit_order(Action.SELL, instrument, stopPrice, limitPrice, quantity * -1)
+            ret = self.broker.create_stop_limit_order(
+                Action.SELL, instrument, stopPrice, limitPrice, quantity * -1)
         if ret:
             ret.good_till_canceled = goodTillCanceled
             ret.all_or_one = allOrNone
@@ -407,7 +425,8 @@ class BaseStrategy:
         if strategyAnalyzer not in self.__analyzers:
             if name is not None:
                 if name in self.__namedAnalyzers:
-                    raise Exception("A different analyzer named '%s' was already attached" % name)
+                    raise Exception(
+                        "A different analyzer named '%s' was already attached" % name)
                 self.__namedAnalyzers[name] = strategyAnalyzer
 
             strategyAnalyzer.beforeAttachImpl(self)
@@ -513,9 +532,15 @@ class BaseStrategy:
 
             pos.onOrderEvent(orderEvent)
 
+    def __appendToSeries(self, bars):
+        for instrument, bar in bars.items():
+            self.bar_series[instrument].append(bar)
+
     def __onBars(self, dateTime, bars1, bars2):
         # THE ORDER HERE IS VERY IMPORTANT
 
+        # 0: Append The bar Into the dataseries
+        self.__appendToSeries(bars2)
         # 1: Let analyzers process bars.
         self.__notifyAnalyzers(lambda s: s.beforeOnBars(bars2))
         # 2: Let the strategy process current bars and submit orders.

@@ -1,6 +1,5 @@
 import abc
 
-from myalgo import dataseries
 from myalgo.event import Event, Subject
 
 
@@ -29,9 +28,7 @@ class BaseFeed(Subject):
     def __init__(self, maxLen):
         super(BaseFeed, self).__init__()
 
-        maxLen = dataseries.get_checked_max_len(maxLen)
 
-        self.__ds = {}
         self.__event = Event()
         self.__maxLen = maxLen
 
@@ -58,25 +55,9 @@ class BaseFeed(Subject):
     def next_values(self):
         raise NotImplementedError()
 
-    def registerDataSeries(self, key):
-        if key not in self.__ds:
-            self.__ds[key] = self.createDataSeries(key, self.__maxLen)
 
     def getNextValuesAndUpdateDS(self):
         dateTime, values = self.next_values
-        if dateTime is not None:
-            for key, value in values.items:
-                # Get or create the datseries for each key.
-                try:
-                    ds = self.__ds[key]
-                except KeyError:
-                    ds = self.createDataSeries(key, self.__maxLen)
-                    self.__ds[key] = ds
-                """
-                    这里key,value对应于上层分别是种类和Feed的填充物，比如instrument和Bar
-                    整个循环把Feed里面所有种类的每一项加到DS后面去
-                """
-                ds.appendWithDateTime(dateTime, value)
         return dateTime, values
 
     def __iter__(self):

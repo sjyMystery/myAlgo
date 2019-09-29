@@ -5,7 +5,11 @@ from myalgo.event import Subject
 
 
 class BaseBroker(Subject, metaclass=ABCMeta):
-    def __init__(self):
+    def __init__(self, instruments):
+        """
+            TODO: 考虑下怎么把Feed什么的也抽象过来。。
+        """
+        self.instruments = instruments
         super(BaseBroker, self).__init__()
 
     def stop(self):

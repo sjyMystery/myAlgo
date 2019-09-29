@@ -1,6 +1,4 @@
 six
-sqlalchemy
-pymysql
 pandas
 numpy
 numba

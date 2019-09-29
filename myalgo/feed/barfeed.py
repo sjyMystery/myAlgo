@@ -1,6 +1,5 @@
 from myalgo.bar.bars import Bars
 from myalgo.config import dispatchprio
-from myalgo.dataseries import bards
 from myalgo.event import Event
 from myalgo.feed import basefeed
 
@@ -125,10 +124,6 @@ class BaseBarFeed(basefeed.BaseFeed):
     def feed_reset_event(self):
         return self.__feed_reset_event
 
-    def createDataSeries(self, key, maxLen):
-        ret = bards.BarDataSeries(maxLen)
-        ret.setUseAdjustedValues(self.__useAdjustedValues)
-        return ret
 
     @property
     def registered_instruments(self):
@@ -137,35 +132,13 @@ class BaseBarFeed(basefeed.BaseFeed):
 
     def register_instrument(self, instrument):
         self.__defaultInstrument = instrument
-        self.registerDataSeries(instrument)
 
     @property
     def default_instrument(self):
         return self.__defaultInstrument
 
-    def data_series(self, instrument=None):
-        """Returns the :class:`pyalgotrade.dataseries.bards.BarDataSeries` for a given instrument.
-
-        :param instrument: Instrument identifier. If None, the default instrument is returned.
-        :type instrument: string.
-        :rtype: :class:`pyalgotrade.dataseries.bards.BarDataSeries`.
-        """
-        if instrument is None:
-            instrument = self.__defaultInstrument
-        return self[instrument]
-
     def dispatch_priority(self):
         return dispatchprio.BAR_FEED
-
-    def set_use_adjusted_values(self, use_adjusted):
-        if use_adjusted and not self.bars_have_adj_close:
-            raise Exception("The barfeed doesn't support adjusted close values")
-        # This is to affect future dataseries when they get created.
-        self.__useAdjustedValues = use_adjusted
-        # Update existing dataseries
-        for instrument in self.registered_instruments():
-            self[instrument].setUseAdjustedValues(use_adjusted)
-
     @property
     def next_values(self):
         values = self.next_bars
